@@ -35,6 +35,7 @@ enum EDI_ErrorSeverity {
 };
 /******************************************************************************/
 struct EDI_SchemaStruct {
+	char                            *identifier;
 	struct hashtable                *elements;
 	struct hashtable                *complexNodes;
 	EDI_ComplexType                  root;

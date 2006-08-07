@@ -108,7 +108,7 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 	componentSep                    = bufIter[104];
 	X12_PARSER->delimiters[SEGMENT] = bufIter[105];
 	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
-	EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "ISA");
+	EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "ISA", 0);
 	i = 0;
 	while(tok.type != SEGMENT){
 		X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
@@ -132,10 +132,10 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 					X12_PARSER->version = version / 100;
 					X12_PARSER->release = version % 100;
 				}
-				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, i);
 				break;
 			case SEGMENT:
-				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, i);
 				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, "ISA");
 				break;
 			default:
@@ -166,6 +166,7 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 /******************************************************************************/
 EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 {
+	int                        offset    = 0;
 	int                        element   = 0;
 	int                        component = 0;
 	char                      *tag       = NULL;
@@ -176,13 +177,14 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
 	if(X12_PARSER->previous == SEGMENT){
 		if(tok.type == ELEMENT && strcmp(tok.token, "IEA") == 0){
-			EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA");
+			EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA", 0);
 			X12_PARSER->previous = ELEMENT;
 			EDI_PARSER->bufReadPtr = bufIter;
 			return (void *)X12_ProcessIEA;
 		}
 	} else {
 		tag = X12_PARSER->savedTag;
+		offset = X12_PARSER->savedSegmentOffset;
 		element = X12_PARSER->savedElementPosition;
 		component = X12_PARSER->savedComponentPosition;
 	}
@@ -193,7 +195,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        	switch(X12_PARSER->previous){
 	        		case COMPONENT:
 	        			component++;
-	        			EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token);
+	        			EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token, element, component);
 	        			break;
 	        		case SEGMENT:
 	        			tag = tok.token;
@@ -206,7 +208,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        					}
 	        				}
 	        			}
-	        			EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, tag);
+	        			EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, tag, offset);
 	        			break;
 	        		case ELEMENT:
 	        			element++;
@@ -222,14 +224,14 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        					}
 	        				}
 	        			}
-	        			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	        			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, element);
 	        			break;
 					default: ;
 	        	}
 	        	break;
 			case COMPONENT:
 				component++;
-				EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token);
+				EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token, element, component);
 				break;
 			case REPEAT:
 				component = 0;
@@ -247,7 +249,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 							}
         				}
         			}
-	        		EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token);
+	        		EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token, element, component);
 	        	} else {
 	        		// Only reset the element count if this isn't a repeated element.
 	        		if(X12_PARSER->previous == ELEMENT){
@@ -263,7 +265,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 							}
         				}
         			}
-	        		EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	        		EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, element);
 	        	}
 				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, tag);
 				tag = NULL;
@@ -294,6 +296,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
     		FREE(EDI_PARSER, X12_PARSER->savedTag);
     	}
     	X12_PARSER->savedTag = strdup(tag);
+    	X12_PARSER->savedSegmentOffset = offset;
 		X12_PARSER->savedElementPosition = element;
 		X12_PARSER->savedComponentPosition = component;
 	}
@@ -316,16 +319,16 @@ EDI_StateHandler X12_ProcessIEA(EDI_Parser parser)
 		EDI_PARSER->bufReadPtr = bufIter;
 		if(tok.type == ELEMENT){
 			if(X12_PARSER->previous == SEGMENT){
-				EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA");
+				EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA", 0);
 			} else {
-				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, 1);
 			}
 		} else if(tok.type == SEGMENT){	
-			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, 2);
 			EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, "IEA");
 			break;
 		}
-	    X12_PARSER->previous = tok.type;
+		X12_PARSER->previous = tok.type;
 		X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
 	}
 	while(bufIter < EDI_PARSER->bufEndPtr){

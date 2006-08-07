@@ -2,7 +2,7 @@
 
 INCLUDES =
 
-AM_CFLAGS = -Wall
+AM_CFLAGS = -O3 -Wall -c -fmessage-length=0
 
 lib_LTLIBRARIES = libedival.la
 

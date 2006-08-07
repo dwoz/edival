@@ -104,7 +104,7 @@ void EDI_SetUserData(EDI_Parser parser, void *p);
     This is called when a segment start tag is found in the data stream.  The
     arguments are the userData structure and a tag indicating the segment.
 *******************************************************************************/
-typedef void (*EDI_SegmentStartHandler)(void *, const char *);
+typedef void (*EDI_SegmentStartHandler)(void *, const char *, int);
 
 void EDI_SetSegmentStartHandler(EDI_Parser, EDI_SegmentStartHandler);
 
@@ -123,7 +123,7 @@ void EDI_SetSegmentEndHandler(EDI_Parser, EDI_SegmentEndHandler);
     N.B. - this function will also be called for zero length elements, i.e.,
     dat == '\0'
 *******************************************************************************/
-typedef void (*EDI_ElementHandler)(void *, const char *);
+typedef void (*EDI_ElementHandler)(void *, const char *, int);
 
 void EDI_SetElementHandler(EDI_Parser, EDI_ElementHandler);
 
@@ -136,7 +136,7 @@ void EDI_SetElementHandler(EDI_Parser, EDI_ElementHandler);
     data, the EDI_ElementHandler callback will be called in instead of using
     this callback multiple times.
 *******************************************************************************/
-typedef void (*EDI_ComponentHandler)(void *, const char *); 
+typedef void (*EDI_ComponentHandler)(void *, const char *, int, int); 
 
 void EDI_SetComponentHandler(EDI_Parser, EDI_ComponentHandler);
 
@@ -282,6 +282,12 @@ enum EDI_SyntaxType {
 *******************************************************************************/
 EDI_Schema
 EDI_SchemaCreate(EDI_Parser);
+
+EDI_Schema
+EDI_GetCurrentSchema(EDI_Parser);
+
+char *EDI_GetSchemaId(EDI_Schema);
+void  EDI_SetSchemaId(EDI_Schema, char*);
 
 /*******************************************************************************
  * Returns a new element type Schema node.  NULL if unsuccessful.  The element

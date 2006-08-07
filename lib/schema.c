@@ -52,6 +52,7 @@ EDI_Schema EDI_SchemaCreate(EDI_Parser parser)
 	if(parser->schema){
 		EDI_DisposeSchema(parser->schema);
 	}
+	schema->identifier   = "";
 	schema->complexNodes = create_hashtable(20);
 	schema->elements     = create_hashtable(20);
 	schema->root         = NULL;
@@ -61,6 +62,22 @@ EDI_Schema EDI_SchemaCreate(EDI_Parser parser)
 	parser->schema       = schema;
 	parser->validate     = EDI_TRUE;
 	return schema;
+}
+/******************************************************************************/
+char *EDI_GetSchemaId(EDI_Schema schema)
+{
+	char *id = NULL;
+	if(schema){
+		id = schema->identifier;
+	}
+	return id;
+}
+/******************************************************************************/
+void EDI_SetSchemaId(EDI_Schema schema, char *id)
+{
+	if(schema){
+		schema->identifier = id;
+	}
 }
 /******************************************************************************/
 void EDI_SetSegmentErrorHandler(EDI_Schema schema, EDI_SegmentErrorHandler h)
@@ -83,10 +100,10 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 	enum EDI_SegmentValidationError error      = SEGERR_NONE;
 	
 	current = schema->stack[startDepth];
-	startCount = current->count;
 	if(!current){
 		return SEGERR_UNDEFINED;
 	}
+	startCount = current->count;
 	if(current->node->type == EDITYPE_LOOP){
 		EDI_LoopNode loop = (EDI_LoopNode)(current->node);
 		if((strcmp(nodeID, loop->startID) == 0)){

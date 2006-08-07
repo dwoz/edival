@@ -270,6 +270,15 @@ void *EDI_GetBuffer(EDI_Parser parser, int len)
     return (void *)parser->bufEndPtr;
 }
 /******************************************************************************/
+EDI_Schema EDI_GetCurrentSchema(EDI_Parser parser)
+{
+	EDI_Schema schema = NULL;
+	if(parser){
+		schema = parser->schema;
+	}
+	return schema;
+}
+/******************************************************************************/
 enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
 {
     void *buffer = NULL;

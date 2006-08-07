@@ -113,7 +113,7 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema  schema,
 				}
 				if(element->values){
 					if(! hashtable_search(element->values, (void *)strdup(value))){
-						fprintf(stderr, "%p\n", hashtable_search(element->values, (void *)strdup(value)));
+						//fprintf(stderr, "%p\n", hashtable_search(element->values, (void *)strdup(value)));
 						return VAL_CODE_ERROR;
 					}
 				}
