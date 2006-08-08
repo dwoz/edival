@@ -35,170 +35,174 @@ void load_standard(EDI_Parser p)
 	EDI_SchemaNode parent = NULL;
 	EDI_SchemaNode child  = NULL;
 	
-	s = EDI_GetCurrentSchema(p);
-	
-	if(!s || !strcmp(EDI_GetSchemaId(s), "Functional Acknowledgement: FA/997") == 0){
-		s = EDI_SchemaCreate(p);
-		//fprintf(stderr, "Schema built\n");		
-
-		EDI_SetSchemaId(s, "Functional Acknowledgement: FA/997");
-
-		/* 997 Elements */
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "2", 0, 999999);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "28", 0, 999999999);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "96", 0, 999999999);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "97", 0, 999999);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "123", 0, 999999);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "143", 3, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "ST01_143", 3, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "329", 4, 9);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "447", 1, 6);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "479", 2, 2);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "715", 1, 1);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "716", 1, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "717", 1, 1);
-		EDI_AddElementValue(s, "717", "E");
-		EDI_AddElementValue(s, "717", "A");
-		EDI_AddElementValue(s, "717", "R");
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "718", 1, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "719", 0, 999999);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "720", 1, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "721", 2, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "722", 0, 99);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "723", 1, 3);
-		child = EDI_CreateElementType(s, EDI_DATA_STRING, "724", 1, 99);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "725", 0, 9999);
-		child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "1528", 0, 99);
-		//fprintf(stderr, "Elements built\n");
-	
-		/* 997 Composites */
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C030");
-		child = EDI_GetElementByID(s, "722");
-		fprintf(stderr, "Append C030-1: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "1528");
-		fprintf(stderr, "Append C030-2: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 ST Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ST");
-		fprintf(stderr, "Add ST01 value: %d\n", EDI_AddElementValue(s, "ST01_143", "997"));
-		child = EDI_GetElementByID(s, "ST01_143");
-		fprintf(stderr, "Append ST01: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "329");
-		fprintf(stderr, "Append ST02: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		EDI_StoreComplexNode(s, parent);
-		
-		/* 997 AK1 Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK1");
-		child = EDI_GetElementByID(s, "479");
-		fprintf(stderr, "Append AK101: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "28");
-		fprintf(stderr, "Append AK102: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		EDI_StoreComplexNode(s, parent);
-		
-		/* 997 AK2 Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK2");
-		child = EDI_GetElementByID(s, "143");
-		fprintf(stderr, "Append AK201: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "329");
-		fprintf(stderr, "Append AK202: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		EDI_StoreComplexNode(s, parent);
-		
-		/* 997 AK3 Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK3");
-		child = EDI_GetElementByID(s, "721");
-		fprintf(stderr, "Append AK301: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "719");
-		fprintf(stderr, "Append AK302: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "447");
-		fprintf(stderr, "Append AK303: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		child = EDI_GetElementByID(s, "720");
-		fprintf(stderr, "Append AK304: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 AK4 Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK4");
-		child = EDI_GetComplexNodeByID(s, "C030");
-		fprintf(stderr, "Append AK401: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "725");
-		fprintf(stderr, "Append AK402: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		child = EDI_GetElementByID(s, "723");
-		fprintf(stderr, "Append AK403: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "724");
-		fprintf(stderr, "Append AK404: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 AK5 Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK5");
-		child = EDI_GetElementByID(s, "717");
-		fprintf(stderr, "Append AK501: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "718");
-		fprintf(stderr, "Append AK502: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK503: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK504: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK505: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK506: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 AK9 Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK9");
-		child = EDI_GetElementByID(s, "715");
-		fprintf(stderr, "Append AK901: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "97");
-		fprintf(stderr, "Append AK902: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "123");
-		fprintf(stderr, "Append AK903: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "2");
-		fprintf(stderr, "Append AK904: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "716");
-		fprintf(stderr, "Append AK905: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK906: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK907: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK908: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		fprintf(stderr, "Append AK909: %p\n", EDI_AppendType(s, parent, child, 0, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 SE Segment */
-		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "SE");
-		child = EDI_GetElementByID(s, "96");
-		fprintf(stderr, "Append SE01: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetElementByID(s, "329");
-		fprintf(stderr, "Append SE02: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 AK2/AK3 Loop */
-		parent = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop-AK2/AK3");
-		child = EDI_GetComplexNodeByID(s, "AK3");
-		fprintf(stderr, "Append AK3 to AK2/AK3 Loop: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetComplexNodeByID(s, "AK4");
-		fprintf(stderr, "Append AK4 to AK2/AK3 Loop: %p\n", EDI_AppendType(s, parent, child, 0, 99));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 AK2 Loop */
-		parent = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop-AK2");
-		child = EDI_GetComplexNodeByID(s, "AK2");
-		fprintf(stderr, "Append AK2 to AK2 Loop: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetComplexNodeByID(s, "Loop-AK2/AK3");
-		fprintf(stderr, "Append Loop-AK2/AK3 to AK2 Loop: %p\n", EDI_AppendType(s, parent, child, 0, 999999));
-		EDI_StoreComplexNode(s, parent);
-		child = EDI_GetComplexNodeByID(s, "AK5");
-		fprintf(stderr, "Append AK5 to AK2 Loop: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		EDI_StoreComplexNode(s, parent);
-	
-		/* 997 Transaction */
-		parent = EDI_CreateComplexType(s, EDITYPE_TRANSACTION, "TS997");
-		child = EDI_GetComplexNodeByID(s, "ST");
-		fprintf(stderr, "Append ST to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetComplexNodeByID(s, "AK1");
-		fprintf(stderr, "Append AK1 to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetComplexNodeByID(s, "Loop-AK2");
-		fprintf(stderr, "Append Loop-AK2 to 997 Loop: %p\n", EDI_AppendType(s, parent, child, 0, 999999));
-		EDI_StoreComplexNode(s, parent);
-		child = EDI_GetComplexNodeByID(s, "AK9");
-		fprintf(stderr, "Append AK9 to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
-		child = EDI_GetComplexNodeByID(s, "SE");
-		fprintf(stderr, "Append SE to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	s = EDI_GetSchema(p);
+	if(s && strcmp(EDI_GetSchemaId(s), "Functional Acknowledgement: FA/997") != 0){
+		s = EDI_RemoveSchema(p);
+		EDI_SchemaFree(s);
 	}
+	if(!s){
+		s = EDI_SchemaCreate();
+		EDI_SetSchemaId(s, "Functional Acknowledgement: FA/997");
+		EDI_SetSchema(p, s);
+	} 
+	/* 997 Elements */
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "2", 0, 999999);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "28", 0, 999999999);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "96", 0, 999999999);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "97", 0, 999999);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "123", 0, 999999);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "143", 3, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "ST01_143", 3, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "329", 4, 9);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "447", 1, 6);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "479", 2, 2);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "715", 1, 1);
+	EDI_AddElementValue(s, "715", "E");
+	EDI_AddElementValue(s, "715", "A");
+	EDI_AddElementValue(s, "715", "R");
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "716", 1, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "717", 1, 1);
+	EDI_AddElementValue(s, "717", "E");
+	EDI_AddElementValue(s, "717", "A");
+	EDI_AddElementValue(s, "717", "R");
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "718", 1, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "719", 0, 999999);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "720", 1, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "721", 2, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "722", 0, 99);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "723", 1, 3);
+	child = EDI_CreateElementType(s, EDI_DATA_STRING, "724", 1, 99);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "725", 0, 9999);
+	child = EDI_CreateElementType(s, EDI_DATA_INTEGER, "1528", 0, 99);
+	//fprintf(stderr, "Elements built\n");
+
+	/* 997 Composites */
+	parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C030");
+	child = EDI_GetElementByID(s, "722");
+	fprintf(stderr, "Append C030-1: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "1528");
+	fprintf(stderr, "Append C030-2: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 ST Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ST");
+	fprintf(stderr, "Add ST01 value: %d\n", EDI_AddElementValue(s, "ST01_143", "997"));
+	child = EDI_GetElementByID(s, "ST01_143");
+	fprintf(stderr, "Append ST01: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "329");
+	fprintf(stderr, "Append ST02: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	EDI_StoreComplexNode(s, parent);
+	
+	/* 997 AK1 Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK1");
+	child = EDI_GetElementByID(s, "479");
+	fprintf(stderr, "Append AK101: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "28");
+	fprintf(stderr, "Append AK102: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	EDI_StoreComplexNode(s, parent);
+	
+	/* 997 AK2 Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK2");
+	child = EDI_GetElementByID(s, "143");
+	fprintf(stderr, "Append AK201: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "329");
+	fprintf(stderr, "Append AK202: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	EDI_StoreComplexNode(s, parent);
+	
+	/* 997 AK3 Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK3");
+	child = EDI_GetElementByID(s, "721");
+	fprintf(stderr, "Append AK301: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "719");
+	fprintf(stderr, "Append AK302: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "447");
+	fprintf(stderr, "Append AK303: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	child = EDI_GetElementByID(s, "720");
+	fprintf(stderr, "Append AK304: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 AK4 Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK4");
+	child = EDI_GetComplexNodeByID(s, "C030");
+	fprintf(stderr, "Append AK401: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "725");
+	fprintf(stderr, "Append AK402: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	child = EDI_GetElementByID(s, "723");
+	fprintf(stderr, "Append AK403: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "724");
+	fprintf(stderr, "Append AK404: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 AK5 Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK5");
+	child = EDI_GetElementByID(s, "717");
+	fprintf(stderr, "Append AK501: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "718");
+	fprintf(stderr, "Append AK502: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK503: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK504: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK505: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK506: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 AK9 Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "AK9");
+	child = EDI_GetElementByID(s, "715");
+	fprintf(stderr, "Append AK901: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "97");
+	fprintf(stderr, "Append AK902: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "123");
+	fprintf(stderr, "Append AK903: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "2");
+	fprintf(stderr, "Append AK904: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "716");
+	fprintf(stderr, "Append AK905: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK906: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK907: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK908: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	fprintf(stderr, "Append AK909: %p\n", EDI_AppendType(s, parent, child, 0, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 SE Segment */
+	parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "SE");
+	child = EDI_GetElementByID(s, "96");
+	fprintf(stderr, "Append SE01: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetElementByID(s, "329");
+	fprintf(stderr, "Append SE02: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 AK2/AK3 Loop */
+	parent = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop-AK2/AK3");
+	child = EDI_GetComplexNodeByID(s, "AK3");
+	fprintf(stderr, "Append AK3 to AK2/AK3 Loop: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetComplexNodeByID(s, "AK4");
+	fprintf(stderr, "Append AK4 to AK2/AK3 Loop: %p\n", EDI_AppendType(s, parent, child, 0, 99));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 AK2 Loop */
+	parent = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop-AK2");
+	child = EDI_GetComplexNodeByID(s, "AK2");
+	fprintf(stderr, "Append AK2 to AK2 Loop: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetComplexNodeByID(s, "Loop-AK2/AK3");
+	fprintf(stderr, "Append Loop-AK2/AK3 to AK2 Loop: %p\n", EDI_AppendType(s, parent, child, 0, 999999));
+	EDI_StoreComplexNode(s, parent);
+	child = EDI_GetComplexNodeByID(s, "AK5");
+	fprintf(stderr, "Append AK5 to AK2 Loop: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	EDI_StoreComplexNode(s, parent);
+
+	/* 997 Transaction */
+	parent = EDI_CreateComplexType(s, EDITYPE_TRANSACTION, "TS997");
+	child = EDI_GetComplexNodeByID(s, "ST");
+	fprintf(stderr, "Append ST to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetComplexNodeByID(s, "AK1");
+	fprintf(stderr, "Append AK1 to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetComplexNodeByID(s, "Loop-AK2");
+	fprintf(stderr, "Append Loop-AK2 to 997 Loop: %p\n", EDI_AppendType(s, parent, child, 0, 999999));
+	EDI_StoreComplexNode(s, parent);
+	child = EDI_GetComplexNodeByID(s, "AK9");
+	fprintf(stderr, "Append AK9 to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
+	child = EDI_GetComplexNodeByID(s, "SE");
+	fprintf(stderr, "Append SE to 997: %p\n", EDI_AppendType(s, parent, child, 1, 1));
 	return;
 }
 
@@ -304,6 +308,10 @@ int main(int argc, char **argv)
 		}
 		buff = EDI_GetBuffer(p, BUFF_SIZE);
 		length = read(input, buff, BUFF_SIZE);
+	}
+	EDI_Schema s = EDI_GetSchema(p);	
+	if(s){
+		EDI_SchemaFree(s);
 	}
 	EDI_ParserFree(p);
 	close(input);

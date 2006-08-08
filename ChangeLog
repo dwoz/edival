@@ -1,0 +1,23 @@
+2006-08-07:
+	ediparse.c:
+		-Remove dependance of a schema from the parser.
+		-Add function for removal of schema from the parser.
+	schema.(c/h):
+		-Remove dependance of schema from the parser.
+		-Convert allocation/creation functions to accept mem. function pointers or
+		void to use default malloc/alloc/free.
+		-Tightened code in the segment position validation function.
+		-Function SchemaDestroy becomes public -> SchemaFree (edival.h)
+	x12parser:
+		-Add missing component validation call.
+		-Replace element validation calls with macro.
+		-Prevent validation attempts for elements contained in an invalid segment.
+
+2006-08-06:
+	edival.h:
+		Added functions to retrieve a schema's id and to retrieve the current schema from the parser.
+		Added element and component offsets to the callbacks for each type of token.
+	schema.h:
+		Added the identifier attribute to the schema to aid in caching.
+	x12parser:
+		Added segment offset count to the parser.

@@ -48,16 +48,17 @@ enum X12_Delimiter {
 };
 
 struct X12_ParserStruct {
-	EDI_Parser           parent;
-	unsigned char        version;
-	unsigned char        release;
-	char                 delimiters[4];
-	char                *savedTag;
-	int                  savedSegmentOffset;
-	int                  savedElementPosition;
-	int                  savedComponentPosition;
-	enum X12_ParseError  error;
-	enum X12_Delimiter   previous;
+	EDI_Parser                      parent;
+	unsigned char                   version;
+	unsigned char                   release;
+	char                            delimiters[4];
+	char                           *savedTag;
+	int                             savedSegmentOffset;
+	int                             savedElementPosition;
+	int                             savedComponentPosition;
+	enum X12_ParseError             error;
+	enum EDI_SegmentValidationError segmentError;
+	enum X12_Delimiter              previous;
 };
 typedef struct X12_ParserStruct *X12_Parser;
 

@@ -277,15 +277,40 @@ enum EDI_SyntaxType {
 };
 
 /*******************************************************************************
-    Constructs a new schema for validation and attaches it to the parser.
+    Constructs a new schema for validation.
     Returns NULL if failure.
 *******************************************************************************/
-EDI_Schema
-EDI_SchemaCreate(EDI_Parser);
+EDI_Schema EDI_SchemaCreate(void);
 
-EDI_Schema
-EDI_GetCurrentSchema(EDI_Parser);
+/*******************************************************************************
+    Constructs a new schema using the memory management suite referred to
+    by memsuite. If memsuite is NULL, then use the standard library memory
+    suite. 
+   
+    All further memory operations used for the created schema will come from
+    the given suite.
+*******************************************************************************/
+EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *memsuite);
 
+
+void EDI_SchemaFree(EDI_Schema);
+
+/*******************************************************************************
+    Get or Set the schema object currently being used by the parser.
+*******************************************************************************/
+EDI_Schema EDI_GetSchema(EDI_Parser);
+void       EDI_SetSchema(EDI_Parser, EDI_Schema);
+
+/*******************************************************************************
+    Remove the schema object currently being used by the parser.  This will
+    stop future validation of the data parsed until a new schema is set on the
+    parser.
+*******************************************************************************/
+EDI_Schema EDI_RemoveSchema(EDI_Parser);
+
+/*******************************************************************************
+    Get or set the identifier on the schema object.
+*******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema);
 void  EDI_SetSchemaId(EDI_Schema, char*);
 

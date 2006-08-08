@@ -119,7 +119,8 @@ void EDI_AddSyntaxNote(EDI_Schema          schema,
                        unsigned int        count , 
                        ...)
 {
-	fprintf(stderr, "FIXME: EDI_AddSyntaxNode not yet implemented.");
+	va_list argp;
+	fprintf(stderr, "FIXME: EDI_AddSyntaxNote not yet implemented.");
 }
 /******************************************************************************/
 static EDI_SchemaNode EDI_RemoveChild(EDI_Schema      schema,

@@ -270,11 +270,34 @@ void *EDI_GetBuffer(EDI_Parser parser, int len)
     return (void *)parser->bufEndPtr;
 }
 /******************************************************************************/
-EDI_Schema EDI_GetCurrentSchema(EDI_Parser parser)
+EDI_Schema EDI_GetSchema(EDI_Parser parser)
 {
 	EDI_Schema schema = NULL;
 	if(parser){
 		schema = parser->schema;
+	}
+	return schema;
+}
+/******************************************************************************/
+void EDI_SetSchema(EDI_Parser parser, EDI_Schema schema)
+{
+	if(schema){
+		parser->schema = schema;
+		parser->validate = EDI_TRUE;
+		schema->parser = parser;
+	}
+}
+/******************************************************************************/
+EDI_Schema EDI_RemoveSchema(EDI_Parser parser)
+{
+	EDI_Schema schema = NULL;
+	if(parser){
+		schema = parser->schema;
+		parser->schema = NULL;
+		parser->validate = EDI_FALSE;
+		if(schema){
+			schema->parser = NULL;
+		}
 	}
 	return schema;
 }
@@ -387,7 +410,7 @@ void EDI_ParserFree(EDI_Parser parser)
 	void (*free_fcn)(void *ptr);
 
 	if(parser->schema){
-		EDI_DisposeSchema(parser->schema);
+		EDI_RemoveSchema(parser);
 	}
 	if(parser->child){
 		parser->freeChild(parser);

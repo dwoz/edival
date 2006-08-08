@@ -28,11 +28,11 @@ typedef struct EDI_ChildNodeStruct   *EDI_ChildNode;
 typedef struct EDI_SimpleTypeStruct   EDI_SimpleType;
 typedef struct EDI_LoopNodeStruct    *EDI_LoopNode;
 /******************************************************************************/
-enum EDI_ErrorSeverity {
+/*enum EDI_ErrorSeverity {
 	EDI_ERRSEV_NONE    = 0,
 	EDI_ERRSEV_WARNING = 1,
 	EDI_ERRSEV_FATAL   = 2
-};
+};*/
 /******************************************************************************/
 struct EDI_SchemaStruct {
 	char                            *identifier;
@@ -71,5 +71,4 @@ EDI_ValidateSegmentPosition(EDI_Schema  ,
                             const char *);  /* Segment Tag */
 
 void EDI_DisposeNode(EDI_Schema, EDI_SchemaNode);
-void EDI_DisposeSchema(EDI_Schema);
 #endif /* EDISchema_INCLUDED */

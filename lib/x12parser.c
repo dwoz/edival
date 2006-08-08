@@ -66,7 +66,18 @@ if(string){\
             break;\
         }\
 	}\
-}\
+}
+/******************************************************************************/
+#define ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, component, value) \
+if(EDI_PARSER->validate && X12_PARSER->segmentError == SEGERR_NONE){\
+	if(strcmp(tag, "GS") != 0 && strcmp(tag, "GE") != 0){\
+		enum EDI_ElementValidationError e = \
+			EDI_ValidateElement(EDI_PARSER->schema, element, component, value);\
+  		if(e){\
+  			fprintf(stderr, "\nELEM_ERR: %d\n", e);\
+  		}\
+  	}\
+}
 /******************************************************************************/
 EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 {
@@ -195,16 +206,17 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        	switch(X12_PARSER->previous){
 	        		case COMPONENT:
 	        			component++;
+	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, component, tok.token);
 	        			EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token, element, component);
 	        			break;
 	        		case SEGMENT:
 	        			tag = tok.token;
+	        			X12_PARSER->segmentError = SEGERR_NONE;
 	        			if(EDI_PARSER->validate){
 	        				if(strcmp(tag, "GS") != 0 && strcmp(tag, "GE") != 0){
-	        					enum EDI_SegmentValidationError e = 
-									EDI_ValidateSegmentPosition(EDI_PARSER->schema, tag);
-	        					if(e){
-	        						fprintf(stderr, "SEG_ERR: %d\n", e);
+	        					X12_PARSER->segmentError = EDI_ValidateSegmentPosition(EDI_PARSER->schema, tag);
+	        					if(X12_PARSER->segmentError){
+	        						fprintf(stderr, "SEG_ERR: %d ***", X12_PARSER->segmentError);
 	        					}
 	        				}
 	        			}
@@ -215,7 +227,8 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        			//fall thru
 	        		case REPEAT:
 	        			component = 0;
-	        			if(EDI_PARSER->validate){
+	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, component, tok.token);
+	        			/*if(EDI_PARSER->validate && X12_PARSER->segmentError == SEGERR_NONE){
 	        				if(strcmp(tag, "GS") != 0 && strcmp(tag, "GE") != 0){
 	        					enum EDI_ElementValidationError e = 
 									EDI_ValidateElement(EDI_PARSER->schema, element, component, tok.token);
@@ -223,7 +236,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        						fprintf(stderr, "\nELEM_ERR: %d\n", e);
 	        					}
 	        				}
-	        			}
+	        			}*/
 	        			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, element);
 	        			break;
 					default: ;
@@ -240,7 +253,8 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 			case SEGMENT:
 	        	if(X12_PARSER->previous == COMPONENT){
 	        		component++;
-        			if(EDI_PARSER->validate){
+        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, component, tok.token);
+        			/*if(EDI_PARSER->validate && X12_PARSER->segmentError == SEGERR_NONE){
         				if(strcmp(tag, "GS") != 0 && strcmp(tag, "GE") != 0){
 							enum EDI_ElementValidationError e = 
 								EDI_ValidateElement(EDI_PARSER->schema, element, component, tok.token);
@@ -248,15 +262,16 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 								fprintf(stderr, "\nELEM_ERR: %d\n", e);
 							}
         				}
-        			}
+        			}*/
 	        		EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token, element, component);
 	        	} else {
-	        		// Only reset the element count if this isn't a repeated element.
+	        		// Only increment the element count if this isn't a repeated element.
 	        		if(X12_PARSER->previous == ELEMENT){
 	        			element++;
 	        		}
 	        		component = 0;
-        			if(EDI_PARSER->validate){
+        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, component, tok.token);
+        			/*if(EDI_PARSER->validate && X12_PARSER->segmentError == SEGERR_NONE){
         				if(strcmp(tag, "GS") != 0 && strcmp(tag, "GE") != 0){
 							enum EDI_ElementValidationError e = 
 								EDI_ValidateElement(EDI_PARSER->schema, element, component, tok.token);
@@ -264,7 +279,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 								fprintf(stderr, "\nELEM_ERR: %d\n", e);
 							}
         				}
-        			}
+        			}*/
 	        		EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token, element);
 	        	}
 				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, tag);

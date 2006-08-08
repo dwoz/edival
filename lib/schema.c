@@ -25,7 +25,6 @@
 #define SCHEMA_POP()         (schema->stack[--(schema->depth)])
 #define CHECK_USAGE(segment)\
 if(segment->count < segment->max_occurs){\
-	/*fprintf(stderr, "Found %s at level %d: ", segment->node->nodeID, schema->depth);*/\
 	segment->count++;\
 	SCHEMA_SAVE(segment);\
 	if(error){\
@@ -38,30 +37,61 @@ if(segment->count < segment->max_occurs){\
 		return SEGERR_EXCEED_REPEAT;\
 	}\
 }
-                          
 /******************************************************************************/
-EDI_Schema EDI_SchemaCreate(EDI_Parser parser)
+static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *); 
+static void schemaInit(EDI_Schema);
+/******************************************************************************/
+EDI_Schema EDI_SchemaCreate(void)
+{
+	return schemaCreate(NULL);	
+}
+/******************************************************************************/
+EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *memsuite)
+{
+	return schemaCreate(memsuite);	
+}
+/******************************************************************************/
+static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite)
 {
 	EDI_Schema schema = NULL;
 	
-	schema = MALLOC(parser, sizeof(struct EDI_SchemaStruct));
-	if(!schema){
-		parser->errorCode = EDI_ERROR_NO_MEM;
-		return NULL;
+	if(memsuite){
+        EDI_Memory_Handling_Suite *mtemp;
+        schema = (EDI_Schema)\
+            memsuite->malloc_fcn(sizeof(struct EDI_SchemaStruct));
+        if (schema != NULL) {
+				schema->memsuite = (EDI_Memory_Handling_Suite *)\
+        		memsuite->malloc_fcn(sizeof(EDI_Memory_Handling_Suite));
+            mtemp = (EDI_Memory_Handling_Suite *)schema->memsuite;
+            mtemp->malloc_fcn = memsuite->malloc_fcn;
+            mtemp->realloc_fcn = memsuite->realloc_fcn;
+            mtemp->free_fcn = memsuite->free_fcn;
+        }
+	} else {
+        EDI_Memory_Handling_Suite *mtemp;
+        schema = (EDI_Schema)malloc(sizeof(struct EDI_SchemaStruct));
+        if (schema != NULL) {
+				schema->memsuite = (EDI_Memory_Handling_Suite *)\
+        		malloc(sizeof(EDI_Memory_Handling_Suite));
+            mtemp = (EDI_Memory_Handling_Suite *)schema->memsuite;
+            mtemp->malloc_fcn = malloc;
+            mtemp->realloc_fcn = realloc;
+            mtemp->free_fcn = free;
+        }
 	}
-	if(parser->schema){
-		EDI_DisposeSchema(parser->schema);
+	if(schema){
+		schemaInit(schema);
 	}
+	return schema;
+}
+/******************************************************************************/
+static void schemaInit(EDI_Schema schema)
+{
 	schema->identifier   = "";
 	schema->complexNodes = create_hashtable(20);
 	schema->elements     = create_hashtable(20);
 	schema->root         = NULL;
 	schema->depth        = 0;
-	schema->memsuite     = parser->memsuite;
-	schema->parser       = parser;
-	parser->schema       = schema;
-	parser->validate     = EDI_TRUE;
-	return schema;
 }
 /******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema schema)
@@ -89,7 +119,7 @@ void EDI_SetElementErrorHandler(EDI_Schema schema, EDI_ElementErrorHandler h)
 {
     schema->handleElementError = h;
 }
-/******************************************************************************/
+/******************************************************************************
 enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
                                                             const char *nodeID)
 {
@@ -195,6 +225,75 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 	}
 	return error;
 }
+*******************************************************************************/
+enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
+                                                            const char *nodeID)
+{
+	unsigned char                   startDepth = schema->depth;
+	unsigned int                    startCount = 0;
+	EDI_ChildNode                   startNode  = NULL;
+	EDI_ChildNode                   current    = NULL;
+	enum EDI_SegmentValidationError error      = SEGERR_NONE;
+	
+	startNode = schema->stack[startDepth];
+	if(!startNode){
+		return SEGERR_UNDEFINED;
+	}
+	startCount = startNode->count;
+	current = startNode;
+	while(current){
+		if(current->node->type == EDITYPE_LOOP){
+			EDI_LoopNode loop = (EDI_LoopNode)(current->node);
+			if((strcmp(nodeID, loop->startID) == 0)){
+				SCHEMA_SAVE(current);
+				if(loop->position == 0){
+					if(current->count >=  current->max_occurs){
+						error = SEGERR_LOOP_EXCEEDED;
+					}
+					//fprintf(stderr, "Saved %s at level %d\n", current->node->nodeID, schema->depth);
+					schema->depth++;
+					current->count++;
+					CHECK_USAGE(loop->node.firstChild);
+				} else {
+					//Can't determine the loop until a later element.
+					return SEGERR_LOOP_SEEK;
+				}
+			}
+		} else {
+			if((strcmp(nodeID, current->node->nodeID) == 0)){
+				CHECK_USAGE(current);
+			}
+		}
+		if(current->count < current->min_occurs){
+			error = SEGERR_MANDATORY;
+		}
+		if(current->nextSibling){
+			current = current->nextSibling;
+		} else {
+			EDI_ChildNode clear = NULL;
+			if(schema->depth > 0){
+				current = SCHEMA_POP();
+				clear = ((EDI_ComplexType)current->node)->firstChild;
+			} else {
+				current  = schema->root->firstChild;
+				if((strcmp(nodeID, current->node->nodeID) != 0)){
+					//Unexpected segment... must reset our position!
+					schema->depth = startDepth;
+					startNode->count = startCount;
+					return SEGERR_UNEXPECTED;
+				} else {
+					clear = current;
+				}
+			}
+			//Reset the usage of child nodes to 0 since we are moving up a level
+			while(clear){
+				clear->count = 0;
+				clear = clear->nextSibling;
+			}
+		}
+	}
+	return error;
+}
 /******************************************************************************/
 enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
                                                     int        elementIndex  , 
@@ -246,17 +345,20 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
 	return error;
 }
 /******************************************************************************/
-void EDI_DisposeSchema(EDI_Schema schema)
+void EDI_SchemaFree(EDI_Schema schema)
 {
 	void (*free_fcn)(void *ptr);
 
-	schema->parser->schema = NULL;
-	schema->parser->validate = EDI_FALSE;
+	if(strcmp(EDI_GetSchemaId(schema->parser->schema), schema->identifier) == 0){
+		schema->parser->schema = NULL;
+		schema->parser->validate = EDI_FALSE;
+	}
 	EDI_DisposeNode(schema, (EDI_SchemaNode)schema->root);
 	hashtable_destroy(schema->complexNodes, 0);
 	hashtable_destroy(schema->elements, 0);
 	free_fcn = schema->memsuite->free_fcn;
 	free_fcn(schema);
+	schema = NULL;
 	return;
 }
 /******************************************************************************/
