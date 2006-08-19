@@ -308,8 +308,8 @@ hashtable_destroy(struct hashtable *h, int free_values)
             while(NULL != e){
             	f = e; 	
             	freekey(f->k);
-            	free(f);
             	e = e->next;
+            	free(f);
             }
         }
     }

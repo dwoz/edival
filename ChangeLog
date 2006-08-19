@@ -1,3 +1,7 @@
+2006-08-19:
+	Many updates and bugfixes through out the library.  Also included a sample program
+	for parsing and validating an 837 file.
+
 2006-08-07:
 	ediparse.c:
 		-Remove dependance of a schema from the parser.

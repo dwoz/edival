@@ -27,12 +27,7 @@ typedef struct EDI_ComplexTypeStruct *EDI_ComplexType;
 typedef struct EDI_ChildNodeStruct   *EDI_ChildNode;
 typedef struct EDI_SimpleTypeStruct   EDI_SimpleType;
 typedef struct EDI_LoopNodeStruct    *EDI_LoopNode;
-/******************************************************************************/
-/*enum EDI_ErrorSeverity {
-	EDI_ERRSEV_NONE    = 0,
-	EDI_ERRSEV_WARNING = 1,
-	EDI_ERRSEV_FATAL   = 2
-};*/
+typedef struct EDI_SyntaxNoteStruct  *EDI_SyntaxNote;
 /******************************************************************************/
 struct EDI_SchemaStruct {
 	char                            *identifier;
@@ -55,7 +50,15 @@ struct EDI_SchemaNodeStruct {
 /******************************************************************************/
 
 /**
- *  Validate an element based on previously defined restrictions
+ *  Validate the position of a segment
+ */
+enum EDI_SegmentValidationError 
+EDI_ValidateSegmentPosition(EDI_Schema  ,
+                            const char *);  /* Segment Tag */
+
+/**
+ *  Validate an element in the current segment based on previously defined 
+ *  restrictions.
  */
 enum EDI_ElementValidationError 
 EDI_ValidateElement(EDI_Schema  ,
@@ -64,11 +67,11 @@ EDI_ValidateElement(EDI_Schema  ,
                     const char *);  /* String/element value */
                     
 /**
- *  Validate the position of a segment
+ *  Validate the relational syntax of a segment/composite element node
  */
-enum EDI_SegmentValidationError 
-EDI_ValidateSegmentPosition(EDI_Schema  ,
-                            const char *);  /* Segment Tag */
+enum EDI_ElementValidationError 
+EDI_ValidateSyntax(EDI_Schema,
+                   int       );  /* Element position; for composites ONLY */
 
 void EDI_DisposeNode(EDI_Schema, EDI_SchemaNode);
 #endif /* EDISchema_INCLUDED */

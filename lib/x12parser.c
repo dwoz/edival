@@ -74,7 +74,7 @@ if(EDI_PARSER->validate && X12_PARSER->segmentError == SEGERR_NONE){\
 		enum EDI_ElementValidationError e = \
 			EDI_ValidateElement(EDI_PARSER->schema, element, component, value);\
   		if(e){\
-  			fprintf(stderr, "\nELEM_ERR: %d\n", e);\
+  			fprintf(stderr, "\nELEM_ERR: %d -> %s%2.2d-%d\n", e, tag, element, component);\
   		}\
   	}\
 }
@@ -243,6 +243,10 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        	}
 	        	break;
 			case COMPONENT:
+				if(X12_PARSER->previous == ELEMENT || X12_PARSER->previous == REPEAT){
+					element++;
+					component = 0;
+				}
 				component++;
 				EDI_PARSER->componentHandler(EDI_PARSER->userData, tok.token, element, component);
 				break;

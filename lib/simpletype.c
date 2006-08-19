@@ -21,8 +21,8 @@
 EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
                                      enum EDI_PrimitiveDataType  type  ,
                                      const char                 *id    , 
-                                     long long int               minlen,
-                                     long long int               maxlen)
+                                     unsigned int                minlen,
+                                     unsigned int                maxlen)
 {
 	EDI_SimpleType *node = NULL;
 	
@@ -92,8 +92,8 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema  schema,
 	EDI_SimpleType   *element = NULL;
 	struct hashtable *table   = NULL;
 	char             *invalid = NULL;
-	long long int     lvalue  = 0;
-	long long int     i       = 0;
+	long              lvalue  = 0;
+	long              i       = 0;
 	
 	table = schema->elements;
 	if((element = (EDI_SimpleType *)hashtable_search(table, (void *)nodeID))){
@@ -113,22 +113,28 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema  schema,
 				}
 				if(element->values){
 					if(! hashtable_search(element->values, (void *)strdup(value))){
-						//fprintf(stderr, "%p\n", hashtable_search(element->values, (void *)strdup(value)));
 						return VAL_CODE_ERROR;
 					}
 				}
 				break;
 			case EDI_DATA_INTEGER:
-				lvalue = strtoll(value, &invalid, 10);
+				lvalue = strtol(value, &invalid, 10);
 				if(value[0] == '\0' || *invalid != '\0'){
 					return VAL_CHAR_ERROR;
 				}
+				lvalue = strlen(value);
 				if(lvalue > element->max){
 					return VAL_RANGE_HIGH;
 				}
 				if(lvalue < element->min){
 					return VAL_RANGE_LOW;
 				}
+				/*if(lvalue > element->max){
+					return VAL_RANGE_HIGH;
+				}
+				if(lvalue < element->min){
+					return VAL_RANGE_LOW;
+				}*/
 				break;
 			case EDI_DATA_INTEGER_POS:
 				lvalue = strtol(value, &invalid, 10);
@@ -149,10 +155,7 @@ void EDI_DisposeSimpleType(EDI_Schema     schema,
 	EDI_SimpleType   *element = NULL;
 	struct hashtable *table   = NULL;
 
-	if(!node){
-		return;
-	}
-	if(node->refCount == 0){
+	if(node && node->refCount == 0){
 		table = schema->elements;
 		if(table){
 			element = (EDI_SimpleType*)hashtable_search(table, node->nodeID);

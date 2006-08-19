@@ -40,13 +40,13 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 	node->firstChild = NULL;
 	node->lastChild  = NULL;
 	node->childCount = 0;
+	node->notes      = NULL;
 	if(type == EDITYPE_LOOP){
 		((struct EDI_LoopNodeStruct *)node)->position = 0;
 		((struct EDI_LoopNodeStruct *)node)->values   = NULL;
 	}
 	if(type == EDITYPE_TRANSACTION){
 		schema->root = node;
-		schema->stack[0] = schema->root->firstChild;
 	}
 	return (EDI_SchemaNode)node;
 }
@@ -87,12 +87,12 @@ enum EDI_ElementValidationError EDI_SetLoopID(EDI_Schema     schema  ,
 	char                           *name     = NULL;
 	EDI_ComplexType                 segment  = NULL;
 	EDI_ChildNode                   element  = NULL;
-	struct EDI_LoopNodeStruct      *loopNode = NULL;
+	EDI_LoopNode                    loopNode = NULL;
 	enum EDI_ElementValidationError error    = VAL_VALID_ELEMENT;
 	va_list                         argp;
 	
 	va_start(argp, count);
-	loopNode = (struct EDI_LoopNodeStruct *)node;
+	loopNode = (EDI_LoopNode)((EDI_ComplexType)node);
 	segment = (EDI_ComplexType)((EDI_ComplexType)node)->firstChild->node;
 	element = segment->firstChild;
 	while(++i < position) {
@@ -119,39 +119,50 @@ void EDI_AddSyntaxNote(EDI_Schema          schema,
                        unsigned int        count , 
                        ...)
 {
-	va_list argp;
-	fprintf(stderr, "FIXME: EDI_AddSyntaxNote not yet implemented.");
+	/*int            i = 0;
+	EDI_SyntaxNote note;
+	va_list        argp;
+
+	va_start(argp, count);
+	note = MALLOC(schema, sizeof(struct EDI_SyntaxNoteStruct));
+	if(note && (node->type = EDITYPE_COMPOSITE || node-> type = EDITYPE_SEGMENT)){
+		note->positions = MALLOC(schema, sizeof(int * count));
+		for(i = 0; i < count; i++){
+			note->positions[i] = va_arg(argp, int);
+		}
+	}*/
+	fprintf(stderr, "FIXME: EDI_AddSyntaxNote not fully implemented.");
+	/*va_end(argp);*/
 }
 /******************************************************************************/
 static EDI_SchemaNode EDI_RemoveChild(EDI_Schema      schema,
                                       EDI_ComplexType parent,
                                       EDI_ChildNode   child )
 {
-	EDI_SchemaNode detached;
+	EDI_SchemaNode detached = NULL;
 
-    if(!child){
-        return NULL;
+    if(child){
+	    detached = child->node;
+	    if(parent->firstChild == child){
+	        parent->firstChild = child->nextSibling;
+	        if(parent->firstChild){
+	            parent->firstChild->previousSibling = NULL;
+	        }
+	    } else if(child->nextSibling){
+	        child->nextSibling->previousSibling = child->previousSibling;
+	    }
+	    if(parent->lastChild == child){
+	        parent->lastChild = child->previousSibling;
+	        if(parent->lastChild){
+	            parent->lastChild->nextSibling = NULL;
+	        }
+	    } else if(child->previousSibling){
+	        child->previousSibling->nextSibling = child->nextSibling;
+	    }
+	    FREE(schema, child);
+	    parent->childCount--;
+	    detached->refCount--;
     }
-    detached = child->node;
-    if(parent->firstChild == child){
-        parent->firstChild = child->nextSibling;
-        if(parent->firstChild){
-            parent->firstChild->previousSibling = NULL;
-        }
-    } else if(child->nextSibling){
-        child->nextSibling->previousSibling = child->previousSibling;
-    }
-    if(parent->lastChild == child){
-        parent->lastChild = child->previousSibling;
-        if(parent->lastChild){
-            parent->lastChild->nextSibling = NULL;
-        }
-    } else if(child->previousSibling){
-        child->previousSibling->nextSibling = child->nextSibling;
-    }
-    FREE(schema, child);
-    parent->childCount--;
-    detached->refCount--;
     return detached;
 }
 /******************************************************************************/
@@ -173,13 +184,15 @@ EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
     		   new->type != EDITYPE_SEGMENT){
     			return NULL;
     		}
+    		break;
     	case EDITYPE_LOOP:
     		if(new->type != EDITYPE_LOOP && 
     		   new->type != EDITYPE_SEGMENT){
     			return NULL;
     		}
     		if(cParent->childCount == 0){
-    			((struct EDI_LoopNodeStruct*)(parent))->startID = new->nodeID;
+    			EDI_LoopNode loop = (EDI_LoopNode)parent;
+    			loop->startID = strdup(new->nodeID);
     		}
     		break;
     	case EDITYPE_SEGMENT:
@@ -217,8 +230,8 @@ EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
 	cParent->childCount++;
 	new->refCount++;
 
-	if(!schema->stack[0] && schema->root){
-		schema->stack[0] = schema->root->firstChild;
+	if(cParent == schema->root){
+		schema->stack[0] = cParent->firstChild;
 	}
 	return new;
 }
@@ -226,19 +239,19 @@ EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
 void EDI_DisposeComplexType(EDI_Schema      schema,
                             EDI_ComplexType node  )
 {
-    EDI_SchemaNode child;
-
-    if(!node){
-        return;
-    }
-	if(node->header.refCount == 0){
+	EDI_SchemaNode child;
+	if(node && node->header.refCount == 0){
 		while(node->childCount > 0){
 			child = EDI_RemoveChild(schema, node, node->firstChild);
 			EDI_DisposeNode(schema, child);
 		}
-	    if(node->header.nodeID){
-	        FREE(schema, node->header.nodeID);
-	    }
+		if(node->header.nodeID){
+			FREE(schema, node->header.nodeID);
+		}
+		if(node->header.type == EDITYPE_LOOP){
+			EDI_LoopNode l = (EDI_LoopNode)node;
+			FREE(schema, l->startID);
+		}
 		FREE(schema, node);
 	}
 	return;

@@ -26,8 +26,8 @@
 struct EDI_SimpleTypeStruct {
 	struct EDI_SchemaNodeStruct header;
 	enum EDI_PrimitiveDataType  type;
-	long long int               min;
-	long long int               max;
+	unsigned int                min;
+	unsigned int                max;
 	struct hashtable           *values;
 };
 /******************************************************************************/

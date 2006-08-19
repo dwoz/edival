@@ -2,8 +2,11 @@ scan997 is a basic program to verify the contents of a 997 file.
 All validation information is hardcoded in the program.  Normally this information 
 would be loaded from a database/file dynamically.  To build scan997, run:
 
-gcc scan997.c -ledival -o scan997
+cc scan997.c -ledival -o scan997
 
 If you have built edival (required) but not done a "make install" run
 
-gcc scan997.c -I../lib -L../lib -ledival -o scan997
+cc scan997.c -I../include -L../lib -ledival -o scan997
+
+
+scan837 is the same as scan997, except can be used to scan 837 health claims.

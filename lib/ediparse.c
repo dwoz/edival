@@ -410,7 +410,9 @@ void EDI_ParserFree(EDI_Parser parser)
 	void (*free_fcn)(void *ptr);
 
 	if(parser->schema){
+		fprintf(stderr, "here\n");
 		EDI_RemoveSchema(parser);
+		fprintf(stderr, "there\n");
 	}
 	if(parser->child){
 		parser->freeChild(parser);

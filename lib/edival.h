@@ -325,8 +325,8 @@ EDI_SchemaNode
 EDI_CreateElementType(EDI_Schema                ,
                       enum EDI_PrimitiveDataType,  /* Data type               */
                       const char               *,  /* Element type identifier */
-                      long long int             ,  /* Minimum length/value    */
-                      long long int             ); /* Maximum length/value    */
+                      unsigned int              ,  /* Minimum length    */
+                      unsigned int              ); /* Maximum length    */
 
 /*******************************************************************************
  * Retrieves a pointer to the element node identified by the second argument.

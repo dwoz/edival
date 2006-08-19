@@ -1,3 +1,0 @@
-edival - A simple EDI file parser + validator. 
-Validation occurs only if the calling program sets constraints. 
-Current functionality is limited to ANSI X12 formatted data.
