@@ -1,3 +1,30 @@
+2006-08-28:
+	common.[ch]/hashtable.c:
+		-New string comparison function for speedup.  Use for hashtable lookups and segment tag
+		checks in x12parser.c.
+	edival.h:
+		-Remove call for EDI_SetLoopID (also removed from complextype.c).  After consideration,
+		I don't think this function has a place at this level of the EDI parsing stack.  Validation
+		of a loop's implementation should be higher in the application level.  Not to mention the
+		added complexity required to validate this.
+		-Simplify the types of elements allowed for validation.  Many were removed 
+		from "enum EDI_PrimitiveDataType".
+		-Changed EDI_AddSyntaxNote to accept an integer array rather than a variable 
+		length argument list.
+	schema.[ch]:
+		-Added a length argument to EDI_ValidateElement.  This removes the need for strlen and
+		helps remove a performance bottleneck.  The element size is counted while tokenizing.
+		-Added new field to schema to hold previous element pointer.  Minor performance gain.
+		-Added support for date and time field validation.  N.b. the minimum and maximum field sizes
+		for date and time fields will be ignored.  Time elements must be numeric 4-8 and date fields
+		must be numeric 6-8.  Both are checked to hold valid contents once those size/type contraints
+		are met.
+		
+	x12parser.c:
+		-Use new string comparison function where appropriate for speed gains.
+		-Call EDI_ValidateSyntax on segments and composite elements.
+		
+
 2006-08-19:
 	Many updates and bugfixes through out the library.  Also included a sample program
 	for parsing and validating an 837 file.
