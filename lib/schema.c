@@ -123,7 +123,7 @@ void EDI_SetElementErrorHandler(EDI_Schema schema, EDI_ElementErrorHandler h)
 enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
                                                             const char *nodeID)
 {
-	unsigned char                   startDepth = schema->depth;
+	unsigned int                    startDepth = schema->depth;
 	unsigned int                    startCount = 0;
 	EDI_ChildNode                   startNode  = NULL;
 	EDI_ChildNode                   current    = NULL;
@@ -138,7 +138,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 	while(current){
 		if(current->node->type == EDITYPE_LOOP){
 			EDI_LoopNode loop = (EDI_LoopNode)(current->node);
-			if((strcmp(nodeID, loop->startID) == 0)){
+			if(string_eq(nodeID, loop->startID)){
 				SCHEMA_SAVE(current);
 				if(loop->position == 0){
 					if(current->count >=  current->max_occurs){
@@ -153,12 +153,12 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 				}
 			}
 		} else {
-			if((strcmp(nodeID, current->node->nodeID) == 0)){
+			if(string_eq(nodeID, current->node->nodeID)){
 				CHECK_USAGE(current);
 			}
 		}
 		if(current->count < current->min_occurs){
-			fprintf(stderr, "\nMissing Mandatory %s (used %d) looking for %s\n", current->node->nodeID, current->count, nodeID);
+			fprintf(stderr, "\nMissing Mandatory %s (used %d) looking for '%s'\n", current->node->nodeID, current->count, nodeID);
 			error = SEGERR_MANDATORY;
 		}
 		if(current->nextSibling){
@@ -170,10 +170,11 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 				clear = ((EDI_ComplexType)current->node)->firstChild;
 			} else {
 				current  = schema->root->firstChild;
-				if((strcmp(nodeID, current->node->nodeID) != 0)){
+				if(!string_eq(nodeID, current->node->nodeID)){
 					//Unexpected segment... must reset our position!
 					schema->depth = startDepth;
 					startNode->count = startCount;
+					fprintf(stderr, "undexpected segment %s\n", nodeID);
 					return SEGERR_UNEXPECTED;
 				} else {
 					clear = current;
@@ -192,34 +193,58 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
                                                     int        elementIndex  , 
                                                     int        componentIndex, 
-                                                    const char *value        )
+                                                    const char *value        ,
+                                                    int        length        )
 {
 	int                             index   = 0;
 	char                           *name    = NULL;
+	EDI_ChildNode                   clear   = NULL;
 	EDI_ChildNode                   segment = NULL;
 	EDI_ChildNode                   element = NULL;
 	enum EDI_ElementValidationError error   = VAL_VALID_ELEMENT;
 	
-	segment = schema->stack[schema->depth];
-	if(segment){
-		element = ((EDI_ComplexType)segment->node)->firstChild;
-		for(index = 1; index < elementIndex; index++){
+	if(elementIndex > 1){
+		element = schema->prevElementNode;
+	} else {
+		segment = schema->stack[schema->depth];
+		if(segment){
+			clear = element = ((EDI_ComplexType)segment->node)->firstChild;
+			while(clear){
+				clear->count = 0;
+				clear = clear->nextSibling;
+			}			
+			schema->prevElementIndex = 1;		
+		} else {
+			error = VAL_INVALID_SEGMENT;
+		}
+	}
+	if(!error){
+		for(index = schema->prevElementIndex; index < elementIndex; index++){
 			if(element->nextSibling){
 				element = element->nextSibling;
 			} else {
 				return VAL_TOO_MANY_ELEMENTS;
 			}
 		}
+		schema->prevElementNode = element;
+		schema->prevElementIndex = index;
 		if(element->node->type == EDITYPE_COMPOSITE){
-			if(componentIndex == 0 && strlen(value) > 0){
+			if(componentIndex == 0 && length > 0){
 				componentIndex = 1;
 			}
 		}
-		if(componentIndex > 0){
+		if(componentIndex){
 			if(element->node->type != EDITYPE_COMPOSITE){
 				return VAL_TOO_MANY_COMPONENTS;
 			} else {
 				EDI_ChildNode c = ((EDI_ComplexType)element->node)->firstChild;
+				if(componentIndex == 1){
+					clear = c;
+					while(clear){
+						clear->count = 0;
+						clear = clear->nextSibling;
+					}
+				}
 				for(index = 1; index < componentIndex; index++){
 					if(c->nextSibling){
 						c = c->nextSibling;
@@ -230,20 +255,17 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
 				element = c;
 			}
 		}
-		if(strlen(value) > 0){
+		if(length){
 			element->count++;
-			/* FIXME: enable repeating elements. Must clear usages at end of segment. */
-			//if(element->count <= element->max_occurs){
+			if(element->count <= element->max_occurs){
 				name = element->node->nodeID;
-				error = EDI_CheckElementConstraints(schema, name, value);
-			//} else {
-			//	error = VAL_REPETITION_EXCEEDED;
-			//}
+				error = EDI_CheckElementConstraints(schema, name, value, length);
+			} else {
+				error = VAL_REPETITION_EXCEEDED;
+			}
 		} else if(element->min_occurs > 0){
 			error = VAL_MANDATORY_ELEMENT;
-		}	
-	} else {
-		error = VAL_INVALID_SEGMENT;
+		}
 	}
 	return error;
 }
@@ -251,8 +273,74 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
 enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema,
                                                    int        element)
 {
-	enum EDI_ElementValidationError error   = VAL_VALID_ELEMENT;
+	int                             i, j   = 0;
+	int                             found  = 0;
+	EDI_Bool                        anchor = EDI_FALSE;
+	EDI_ComplexType                 parent = NULL;
+	EDI_SyntaxNote                  note   = NULL;
+	EDI_ChildNode                   child  = NULL;
+	enum EDI_ElementValidationError error  = VAL_VALID_ELEMENT;
 
+	parent = (EDI_ComplexType)(schema->stack[schema->depth])->node;
+	if(parent && parent->firstNote){
+		if(element-- > 0){
+			child = parent->firstChild;
+			while(element--){
+				child = child->nextSibling;
+			}
+			parent = (EDI_ComplexType)child->node;
+		}
+		note = parent->firstNote;
+		child = parent->firstChild;
+		while(note && !error){
+			found = 0;
+			i = j = 0;
+			anchor = EDI_FALSE;
+			while(child){
+				i++;
+				if(i == note->positions[j]){
+					j++;
+					if(child->count > 0){
+						found++;
+						if(j == 1){
+							anchor = EDI_TRUE;
+						}
+					}
+				}
+				child = child->nextSibling;
+			}
+			switch(note->type){
+			case EDI_SYNTAX_PAIRED:
+				if(found && found != note->count){
+					error = VAL_MISSING_CONDITIONAL;
+				}
+				break;
+			case EDI_SYNTAX_REQUIRED:
+				if(!found){
+					error = VAL_MISSING_CONDITIONAL;
+				}
+				break;
+			case EDI_SYNTAX_EXCLUSION:
+				if(found > 1){
+					error = VAL_EXCLUSION_VIOLATED;
+				}
+				break;
+			case EDI_SYNTAX_CONDITION:
+				if(anchor && found < note->count){
+					error = VAL_MISSING_CONDITIONAL;
+				}
+				break;
+			case EDI_SYNTAX_LIST:
+				if(anchor && found == 1){
+					error = VAL_MISSING_CONDITIONAL;
+				}
+				break;
+			}
+			note = note->next;
+		}
+	} else {
+		error = VAL_INVALID_SEGMENT;
+	}
 	return error;
 }
 /******************************************************************************/

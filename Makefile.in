@@ -66,9 +66,11 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(libedivaldocdir)"
+am__installdirs = "$(DESTDIR)$(libedivaldocdir)" \
+	"$(DESTDIR)$(libedivalexampledir)"
 libedivaldocDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(libedivaldoc_DATA)
+libedivalexampleDATA_INSTALL = $(INSTALL_DATA)
+DATA = $(libedivaldoc_DATA) $(libedivalexample_DATA)
 ETAGS = etags
 CTAGS = ctags
 DIST_SUBDIRS = $(SUBDIRS)
@@ -193,7 +195,7 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 SUBDIRS = lib
-libedivaldocdir = ${prefix}/doc/edival-0.1.0
+libedivaldocdir = ${prefix}/doc/edival-0.1.1
 libedivaldoc_DATA = \
 	README          \
 	COPYING         \
@@ -203,6 +205,8 @@ libedivaldoc_DATA = \
 	NEWS            \
 	TODO
 
+libedivalexampledir = ${prefix}/doc/edival-0.1.1/examples
+libedivalexample_DATA = examples/scan997.c examples/scan837.c examples/README
 EXTRA_DIST = $(libedivaldoc_DATA)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -284,6 +288,23 @@ uninstall-libedivaldocDATA:
 	  f=$(am__strip_dir) \
 	  echo " rm -f '$(DESTDIR)$(libedivaldocdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(libedivaldocdir)/$$f"; \
+	done
+install-libedivalexampleDATA: $(libedivalexample_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(libedivalexampledir)" || $(mkdir_p) "$(DESTDIR)$(libedivalexampledir)"
+	@list='$(libedivalexample_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(libedivalexampleDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(libedivalexampledir)/$$f'"; \
+	  $(libedivalexampleDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(libedivalexampledir)/$$f"; \
+	done
+
+uninstall-libedivalexampleDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libedivalexample_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(libedivalexampledir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(libedivalexampledir)/$$f"; \
 	done
 
 # This directory's subdirectories are mostly independent; you can cd
@@ -567,7 +588,7 @@ check: check-recursive
 all-am: Makefile $(DATA) config.h
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(libedivaldocdir)"; do \
+	for dir in "$(DESTDIR)$(libedivaldocdir)" "$(DESTDIR)$(libedivalexampledir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: install-recursive
@@ -614,7 +635,7 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-libedivaldocDATA
+install-data-am: install-libedivaldocDATA install-libedivalexampleDATA
 
 install-exec-am:
 
@@ -642,7 +663,8 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-info-am uninstall-libedivaldocDATA
+uninstall-am: uninstall-info-am uninstall-libedivaldocDATA \
+	uninstall-libedivalexampleDATA
 
 uninstall-info: uninstall-info-recursive
 
@@ -655,13 +677,14 @@ uninstall-info: uninstall-info-recursive
 	distuninstallcheck dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-exec \
 	install-exec-am install-info install-info-am \
-	install-libedivaldocDATA install-man install-strip \
-	installcheck installcheck-am installdirs installdirs-am \
-	maintainer-clean maintainer-clean-generic \
-	maintainer-clean-recursive mostlyclean mostlyclean-generic \
-	mostlyclean-libtool mostlyclean-recursive pdf pdf-am ps ps-am \
-	tags tags-recursive uninstall uninstall-am uninstall-info-am \
-	uninstall-libedivaldocDATA
+	install-libedivaldocDATA install-libedivalexampleDATA \
+	install-man install-strip installcheck installcheck-am \
+	installdirs installdirs-am maintainer-clean \
+	maintainer-clean-generic maintainer-clean-recursive \
+	mostlyclean mostlyclean-generic mostlyclean-libtool \
+	mostlyclean-recursive pdf pdf-am ps ps-am tags tags-recursive \
+	uninstall uninstall-am uninstall-info-am \
+	uninstall-libedivaldocDATA uninstall-libedivalexampleDATA
 
 
 # Copy all the spec files. Of cource, only one is actually used.

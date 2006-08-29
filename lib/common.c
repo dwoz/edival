@@ -35,3 +35,13 @@ char *strndup(const char *s, size_t n, const EDI_Memory_Handling_Suite *memsuite
     new[len] = '\0';
     return (char *) memcpy(new, s, len);
 }
+/******************************************************************************/
+inline int string_eq(const char* str1, const char* str2)
+{
+	while(!((*str1++) ^ (*str2++))){
+		if(!(*str1) && !(*str2)){
+			return 1;
+		}
+	}
+	return 0;
+}

@@ -31,11 +31,12 @@ struct EDI_ChildNodeStruct {
 };
 /******************************************************************************/
 struct EDI_ComplexTypeStruct {
-	struct EDI_SchemaNodeStruct  header;     //
+	struct EDI_SchemaNodeStruct  header;
 	EDI_ChildNode                firstChild;
 	EDI_ChildNode                lastChild;
 	unsigned int                 childCount;
-	EDI_SyntaxNote              *notes;
+	EDI_SyntaxNote               firstNote;
+	EDI_SyntaxNote               finalNote;
 };
 /******************************************************************************/
 struct EDI_LoopNodeStruct {
@@ -47,7 +48,9 @@ struct EDI_LoopNodeStruct {
 /******************************************************************************/
 struct EDI_SyntaxNoteStruct {
 	enum EDI_SyntaxType  type;
-	int                 *positions;
+	unsigned int         count;
+	unsigned int        *positions;
+	EDI_SyntaxNote       next;
 };
 /******************************************************************************/
 void EDI_DisposeComplexType(EDI_Schema, EDI_ComplexType);

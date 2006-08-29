@@ -195,7 +195,7 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 INCLUDES = 
-AM_CFLAGS = -O3 -Wall -c -fmessage-length=0
+AM_CFLAGS = -std=gnu99 -O3 -Wall -c -fmessage-length=0
 lib_LTLIBRARIES = libedival.la
 edival_public_h_SOURCES = edival.h               
 edival_private_h_SOURCES = \

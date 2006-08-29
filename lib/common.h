@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <time.h>
 /******************************************************************************/
 typedef void* (*EDI_StateHandler)(void *parser);
 /******************************************************************************/
@@ -39,12 +40,13 @@ typedef void* (*EDI_StateHandler)(void *parser);
 size_t strnlen (const char *, size_t);
 /******************************************************************************/
 char *strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
+inline int string_eq(const char*, const char*);
 #endif /* _GNU_SOURCE */
 
 #define EDI_GAP_SCAN(parser, pointer) \
 	do { \
 		int prefix = pointer - parser->bufReadPtr;\
-		if(prefix > 0 || !isspace(*(parser->bufReadPtr))){\
+		if(prefix && !isspace(*(parser->bufReadPtr))){\
 			char *garbage = strndup(parser->bufReadPtr, prefix, parser->memsuite);\
 			if(!garbage){\
 				parser->errorCode = EDI_ERROR_NO_MEM;\

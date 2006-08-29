@@ -21,7 +21,27 @@
 
 #include "schema.h"
 /******************************************************************************/
+#define IS_LEAP_YEAR(Y) \
+	( ((Y)>0) && !((Y)%4) && ( ((Y)%100) || !((Y)%400) ) )
 
+#define DATE_IS_VALID(Y, M, D) \
+(\
+	(M < 8 && \
+		(\
+				(M==2 && (D<=28 || (IS_LEAP_YEAR(Y) && D<=29)))\
+			|| \
+				(!(M%2) && (M!=2) && (D<=30))\
+			|| \
+				( (M%2) && (D<=31))\
+		)\
+	) || (M>7 && \
+		(\
+			(!(M%2) && (D<=31))\
+			|| \
+			( (M%2) && (D<=30))\
+		)\
+	)\
+)\
 /******************************************************************************/
 struct EDI_SimpleTypeStruct {
 	struct EDI_SchemaNodeStruct header;
@@ -35,7 +55,8 @@ void EDI_DisposeSimpleType(EDI_Schema, EDI_SchemaNode);
 
 enum EDI_ElementValidationError 
 EDI_CheckElementConstraints(EDI_Schema  ,
-                            const char *,   /* Name of element      */
-                            const char *);  /* String/element value */
+                            const char *,   /* Name of element       */
+                            const char *,   /* String/element value  */
+                            int        );   /* String/element length */
 
 #endif /* EDISimpleType_INCLUDED */

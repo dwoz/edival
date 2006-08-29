@@ -40,7 +40,8 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 	node->firstChild = NULL;
 	node->lastChild  = NULL;
 	node->childCount = 0;
-	node->notes      = NULL;
+	node->firstNote  = NULL;
+	node->finalNote  = NULL;
 	if(type == EDITYPE_LOOP){
 		((struct EDI_LoopNodeStruct *)node)->position = 0;
 		((struct EDI_LoopNodeStruct *)node)->values   = NULL;
@@ -75,64 +76,41 @@ EDI_SchemaNode EDI_GetComplexNodeByID(EDI_Schema      schema,
 		return NULL;
 	}
 }
-
 /******************************************************************************/
-enum EDI_ElementValidationError EDI_SetLoopID(EDI_Schema     schema  ,
-                                              EDI_SchemaNode node    ,
-                                              unsigned int   position, 
-                                              unsigned int   count   ,
-                                              ...)
+void EDI_AddSyntaxNote(EDI_Schema           schema  ,
+                       EDI_SchemaNode       node    ,
+                       enum EDI_SyntaxType  type    ,
+                       unsigned int         count   ,
+                       unsigned int        *elements) 
 {
-	int                             i        = 0;
-	char                           *name     = NULL;
-	EDI_ComplexType                 segment  = NULL;
-	EDI_ChildNode                   element  = NULL;
-	EDI_LoopNode                    loopNode = NULL;
-	enum EDI_ElementValidationError error    = VAL_VALID_ELEMENT;
-	va_list                         argp;
-	
-	va_start(argp, count);
-	loopNode = (EDI_LoopNode)((EDI_ComplexType)node);
-	segment = (EDI_ComplexType)((EDI_ComplexType)node)->firstChild->node;
-	element = segment->firstChild;
-	while(++i < position) {
-		element = element->nextSibling;
-	}
-	name = element->node->nodeID;
-	for(i = 0; i < count; i++){
-		char *value = va_arg(argp, char *);
-		error = EDI_CheckElementConstraints(schema, name, value);
-		if(!error){
-			if(!loopNode->values){
-				loopNode->values = create_hashtable(5);
+	int             i;
+	unsigned int   *positions;
+	EDI_ComplexType cNode;
+	EDI_SyntaxNote  note;
+
+	if(node->type == EDITYPE_COMPOSITE || node-> type == EDITYPE_SEGMENT){
+		cNode = (EDI_ComplexType)node;
+		note = MALLOC(schema, sizeof(struct EDI_SyntaxNoteStruct));
+		positions = MALLOC(schema, sizeof(int)*count);
+		if(note && positions){
+			note->type = type;
+			for(i = 0; i < count; i++){
+				positions[i] = elements[i];
 			}
-			hashtable_insert(loopNode->values, (void *)value, (void *)value);
+			note->positions = positions;
+			note->count = count;
+			note->next = NULL;
+			if(cNode->firstNote){
+				cNode->finalNote->next = cNode->finalNote = note;
+			} else {
+				cNode->firstNote = cNode->finalNote = note;
+			}
+		} else {
+			fprintf(stderr, "Memory allocation error! complextyle.c:EDI_AddSyntaxNote\n");
 		}
+	} else {
+		fprintf(stderr, "Illegal operation - attempted to add syntax note to schema node of type %d\n", node->type);
 	}
-	va_end(argp);
-	return error;
-}
-/******************************************************************************/
-void EDI_AddSyntaxNote(EDI_Schema          schema,
-                       EDI_SchemaNode      node  ,
-                       enum EDI_SyntaxType type  , 
-                       unsigned int        count , 
-                       ...)
-{
-	/*int            i = 0;
-	EDI_SyntaxNote note;
-	va_list        argp;
-
-	va_start(argp, count);
-	note = MALLOC(schema, sizeof(struct EDI_SyntaxNoteStruct));
-	if(note && (node->type = EDITYPE_COMPOSITE || node-> type = EDITYPE_SEGMENT)){
-		note->positions = MALLOC(schema, sizeof(int * count));
-		for(i = 0; i < count; i++){
-			note->positions[i] = va_arg(argp, int);
-		}
-	}*/
-	fprintf(stderr, "FIXME: EDI_AddSyntaxNote not fully implemented.");
-	/*va_end(argp);*/
 }
 /******************************************************************************/
 static EDI_SchemaNode EDI_RemoveChild(EDI_Schema      schema,
@@ -248,6 +226,15 @@ void EDI_DisposeComplexType(EDI_Schema      schema,
 		if(node->header.nodeID){
 			FREE(schema, node->header.nodeID);
 		}
+		if(node->firstNote){
+			EDI_SyntaxNote note = node->firstNote;
+			while(note){
+				EDI_SyntaxNote next = note->next;
+				FREE(schema, note->positions);
+				FREE(schema, note);
+				note = next;
+			}
+		}		
 		if(node->header.type == EDITYPE_LOOP){
 			EDI_LoopNode l = (EDI_LoopNode)node;
 			FREE(schema, l->startID);

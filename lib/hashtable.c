@@ -5,6 +5,8 @@
 #include <string.h>
 #include <math.h>
 
+#include <stdio.h>
+
 /*
  Credit for primes table: Aaron Krowne
  http://br.endernet.org/~akrowne/
@@ -38,8 +40,6 @@ struct hashtable {
     unsigned int entrycount;
     unsigned int loadlimit;
     unsigned int primeindex;
-    //unsigned int (*hashfn) (void *k);
-    //int (*eqfn) (void *k1, void *k2);
 };
 
 /*****************************************************************************/
@@ -69,8 +69,6 @@ indexFor(unsigned int tablelength, unsigned int hashvalue)
 /*****************************************************************************/
 struct hashtable *
 create_hashtable(unsigned int minsize)
-                 //unsigned int (*hashf) (void*),
-                 //int (*eqf) (void*,void*))
 {
     struct hashtable *h;
     unsigned int pindex, size = primes[0];
@@ -88,24 +86,18 @@ create_hashtable(unsigned int minsize)
     h->tablelength  = size;
     h->primeindex   = pindex;
     h->entrycount   = 0;
-    //h->hashfn       = hashf;
-    //h->eqfn         = eqf;
     h->loadlimit    = (unsigned int) ceil(size * max_load_factor);
     return h;
 }
 /*****************************************************************************/
-static int string_eq(void* str1, void* str2)
+static inline int string_eq(char* str1, char* str2)
 {
-	int len = 0;
-	
-	len = strlen(str1);
-	if(len != strlen(str2)){
-		return 0;
+	while(!((*str1++) ^ (*str2++))){
+		if(!(*str1) && !(*str2)){
+			return 1;
+		}
 	}
-	if(strncmp(str1, str2, len)){
-		return 0;
-	}
-	return 1;
+	return 0;
 }
 /*****************************************************************************/
 static unsigned long
@@ -125,7 +117,6 @@ hash(struct hashtable *h, void *k)
 {
     /* Aim to protect against poor hash functions by adding logic here
      * - logic taken from java 1.4 hashtable source */
-    //unsigned int i = h->hashfn(k);
     unsigned int i = hash_func(k);
     i += ~(i << 9);
     i ^=  ((i >> 14) | (i << 18)); /* >>> */
@@ -235,8 +226,7 @@ hashtable_search(struct hashtable *h, void *k)
     hashvalue = hash(h,k);
     index = indexFor(h->tablelength,hashvalue);
     e = h->table[index];
-    while (NULL != e)
-    {
+    while(e){
         /* Check hash value to short circuit heavier comparison */
         if ((hashvalue == e->h) && (string_eq(k, e->k))) return e->v;
         e = e->next;
@@ -260,11 +250,9 @@ hashtable_remove(struct hashtable *h, void *k)
     index = indexFor(h->tablelength,hash(h,k));
     pE = &(h->table[index]);
     e = *pE;
-    while (NULL != e)
-    {
+    while (NULL != e){
         /* Check hash value to short circuit heavier comparison */
-        if ((hashvalue == e->h) && (string_eq(k, e->k)))
-        {
+        if ((hashvalue == e->h) && (string_eq(k, e->k))){
             *pE = e->next;
             h->entrycount--;
             v = e->v;

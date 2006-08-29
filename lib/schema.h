@@ -35,7 +35,9 @@ struct EDI_SchemaStruct {
 	struct hashtable                *complexNodes;
 	EDI_ComplexType                  root;
 	EDI_ChildNode                    stack[50];
-	unsigned char                    depth;
+	unsigned int                     depth;
+	EDI_ChildNode                    prevElementNode;
+	unsigned int                     prevElementIndex;
 	const EDI_Memory_Handling_Suite *memsuite;
 	EDI_Parser                       parser;
 	EDI_SegmentErrorHandler          handleSegmentError;
@@ -62,9 +64,10 @@ EDI_ValidateSegmentPosition(EDI_Schema  ,
  */
 enum EDI_ElementValidationError 
 EDI_ValidateElement(EDI_Schema  ,
-                    int         ,   /* Element position     */
-                    int         ,   /* Composite position   */
-                    const char *);  /* String/element value */
+                    int         ,   /* Element position      */
+                    int         ,   /* Composite position    */
+                    const char *,   /* String/element value  */
+                    int         );  /* String/element length */
                     
 /**
  *  Validate the relational syntax of a segment/composite element node

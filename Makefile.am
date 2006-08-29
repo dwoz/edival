@@ -10,6 +10,9 @@ libedivaldoc_DATA = \
 	NEWS            \
 	TODO
 
+libedivalexampledir = ${prefix}/doc/edival-0.1.1/examples
+libedivalexample_DATA = examples/scan997.c examples/scan837.c examples/README
+
 EXTRA_DIST = $(libedivaldoc_DATA)
 
 # Copy all the spec files. Of cource, only one is actually used.

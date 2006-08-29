@@ -213,16 +213,12 @@ enum EDI_NodeType {
  *  stream to validate, assuming size constraints are met (X12 BIN02 element).
  ******************************************************************************/
 enum EDI_PrimitiveDataType {
-    EDI_DATA_STRING      = 1, /* Alphanumeric string */
+    EDI_DATA_STRING      = 1, /* Alphanumeric string & predefined identifiers */
     EDI_DATA_INTEGER     = 2,
-    EDI_DATA_INTEGER_POS = 3, /* Enforce a positive integer value */
-    EDI_DATA_DECIMAL     = 4,
-    EDI_DATA_DECIMAL_POS = 5, /* Enforce a positive real value */
-    EDI_DATA_DURATION    = 6, /* CCYYMMDD-CCYYMMDD */
-    EDI_DATA_DATETIME    = 7, /* CCYYMMDDHHMM */
-    EDI_DATA_TIME        = 8, /* HHMM */
-    EDI_DATA_DATE        = 9, /* CCYYMMDD */
-    EDI_DATA_BINARY      = 10 /* Binary data */
+    EDI_DATA_DECIMAL     = 3,
+    EDI_DATA_DATE        = 4, /* CCYYMMDD */
+    EDI_DATA_TIME        = 5, /* HHMMSSdd */
+    EDI_DATA_BINARY      = 6  /* Binary data */
 };
 
 /*******************************************************************************
@@ -368,29 +364,15 @@ EDI_SchemaNode EDI_GetComplexNodeByID(EDI_Schema  ,
                                       const char *);
 
 /*******************************************************************************
- * Set which element in a loop's first segment is used to uniquely identify
- * a particular iteration of the loop.  Used mainly for specific implementations
- * of a standard.  Returns an element error if any of the element values used
- * to identify this loop are invalid for the given element.  The number of
- * values passed in arguments 4+ must equal the value passed in argument 3.
- ******************************************************************************/
-enum EDI_ElementValidationError 
-EDI_SetLoopID(EDI_Schema    ,
-              EDI_SchemaNode, /* LoopType schema node                */
-              unsigned int  , /* Element which uniquely IDs the loop */
-              unsigned int  , /* Number of unique ID element values  */
-              ...);           /* List of ID element values           */
-
-/*******************************************************************************
  *  Add a syntax restriction to a segment or composite for the elements it
- *  contains.
+ *  contains.  
  ******************************************************************************/
 void
 EDI_AddSyntaxNote(EDI_Schema         ,
-                  EDI_SchemaNode     , /* Segment/Composite with restriction */
-                  enum EDI_SyntaxType, /* Type of syntax restriction         */
-                  unsigned int       , /* Number of elements restricted      */
-                  ...);                /* Integer list of element positions  */
+                  EDI_SchemaNode     ,  /* Segment/Composite with restriction */
+                  enum EDI_SyntaxType,  /* Type of syntax restriction         */
+                  unsigned int       ,  /* Number of elements included in note*/
+                  unsigned int *     ); /* Integer list of element positions  */
 
 /*******************************************************************************
  *  Appends any of the following:

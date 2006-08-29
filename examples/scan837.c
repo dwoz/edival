@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define BUFF_SIZE 1024
+#define BUFF_SIZE 16777216
 
 int group_start = 0;
 int counter = 0;
@@ -52,8 +52,8 @@ void load_standard(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1005", 4, 4);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "353", 2, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "127", 1, 30);
-		EDI_CreateElementType(s, EDI_DATA_INTEGER, "373", 8, 8);
-		EDI_CreateElementType(s, EDI_DATA_INTEGER, "337", 4, 8);
+		EDI_CreateElementType(s, EDI_DATA_DATE, "373", 6, 8);
+		EDI_CreateElementType(s, EDI_DATA_TIME, "337", 4, 8);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "640", 2, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "128", 2, 3);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "352", 1, 80);
@@ -111,7 +111,7 @@ void load_standard(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_STRING, "659", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "380", 1, 15);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1028", 1, 38);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "782", 1, 18);
+		EDI_CreateElementType(s, EDI_DATA_DECIMAL, "782", 1, 18);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1343", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1331", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1332", 1, 2);
@@ -356,6 +356,7 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 0, 1);
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "352"), 0, 1);
 		EDI_AppendType(s, parent, EDI_GetComplexNodeByID(s, "C040"), 0, 1);
+		EDI_AddSyntaxNote(s, parent, EDI_SYNTAX_REQUIRED, 2, (int[]){2, 3});
 		EDI_StoreComplexNode(s, parent);
 
 		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "NM1");
@@ -872,6 +873,7 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "782"), 0, 1);
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1337"), 0, 1);
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1360"), 0, 1);
+		EDI_AddSyntaxNote(s, parent, EDI_SYNTAX_PAIRED, 2, (int[]){3,4});
 		EDI_StoreComplexNode(s, parent);
 
 		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "SV2");
@@ -1242,7 +1244,7 @@ void handleComponent(void *myData, const char *val, int elementPosition, int pos
 
 void handleJunk(void *myData, const char *val)
 {
-    //fprintf(stderr, "Junk: >>{%s}<<\n", val);
+    fprintf(stderr, "Junk: >>{%s}<<\n", val);
     return;
 
 }
