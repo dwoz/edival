@@ -1,6 +1,6 @@
 SUBDIRS = lib
 
-libedivaldocdir = ${prefix}/doc/edival-0.1.1
+libedivaldocdir = ${prefix}/doc/edival-0.1.2
 libedivaldoc_DATA = \
 	README          \
 	COPYING         \
@@ -10,7 +10,7 @@ libedivaldoc_DATA = \
 	NEWS            \
 	TODO
 
-libedivalexampledir = ${prefix}/doc/edival-0.1.1/examples
+libedivalexampledir = ${prefix}/doc/edival-0.1.2/examples
 libedivalexample_DATA = examples/scan997.c examples/scan837.c examples/README
 
 EXTRA_DIST = $(libedivaldoc_DATA)

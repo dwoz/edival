@@ -27,7 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 0
+#define EDI_MICRO_VERSION 2
 
 /******************************************************************************/
 /********** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ************/

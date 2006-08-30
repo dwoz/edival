@@ -1,3 +1,14 @@
+2006-08-29:
+	edival.h:
+		-Bump micro version to 2 (release 0.1.2)
+	schema.c:
+		-Fix bug in syntax note validation function, EDI_ValidateSyntax.
+		-Change call to EDI_CheckElementConstraints to pass the schema node directly rather
+		than pass the element ID to do a hash lookup (speed enhancement).
+	simpletype.[ch]:
+		-Change definition for EDI_CheckElementConstraints to receive the schema node directly 
+		rather than the element ID to do a hash lookup (speed enhancement).
+
 2006-08-28:
 	common.[ch]/hashtable.c:
 		-New string comparison function for speedup.  Use for hashtable lookups and segment tag
@@ -19,7 +30,6 @@
 		for date and time fields will be ignored.  Time elements must be numeric 4-8 and date fields
 		must be numeric 6-8.  Both are checked to hold valid contents once those size/type contraints
 		are met.
-		
 	x12parser.c:
 		-Use new string comparison function where appropriate for speed gains.
 		-Call EDI_ValidateSyntax on segments and composite elements.

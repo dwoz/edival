@@ -197,7 +197,6 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
                                                     int        length        )
 {
 	int                             index   = 0;
-	char                           *name    = NULL;
 	EDI_ChildNode                   clear   = NULL;
 	EDI_ChildNode                   segment = NULL;
 	EDI_ChildNode                   element = NULL;
@@ -258,8 +257,7 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
 		if(length){
 			element->count++;
 			if(element->count <= element->max_occurs){
-				name = element->node->nodeID;
-				error = EDI_CheckElementConstraints(schema, name, value, length);
+				error = EDI_CheckElementConstraints(schema, (EDI_SimpleType *)(element->node), value, length);
 			} else {
 				error = VAL_REPETITION_EXCEEDED;
 			}
@@ -282,7 +280,7 @@ enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema,
 	enum EDI_ElementValidationError error  = VAL_VALID_ELEMENT;
 
 	parent = (EDI_ComplexType)(schema->stack[schema->depth])->node;
-	if(parent && parent->firstNote){
+	if(parent){
 		if(element-- > 0){
 			child = parent->firstChild;
 			while(element--){

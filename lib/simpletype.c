@@ -76,7 +76,7 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_Schema      schema,
 	
 	table = schema->elements;
 	if((element = (EDI_SimpleType *)hashtable_search(table, (void *)nodeID))){
-		error = EDI_CheckElementConstraints(schema, nodeID, value, strlen(value));
+		error = EDI_CheckElementConstraints(schema, element, value, strlen(value));
 		if(!error || error == VAL_CODE_ERROR){
 			if(!element->values){
 				element->values = create_hashtable(20);
@@ -89,21 +89,18 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_Schema      schema,
 	return error;
 }
 /******************************************************************************/
-enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema  schema,
-                                                            const char *nodeID,
-                                                            const char *value ,
-                                                            int         length)
+enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      schema ,
+                                                            EDI_SimpleType *element,
+                                                            const char     *value  ,
+                                                            int             length )
 {
-	EDI_SimpleType   *element  = NULL;
-	struct hashtable *table    = NULL;
 	const char       *check    = NULL;
 	char             *invalid  = NULL;
 	long long         llvalue  = 0;
 	long double       ldvalue  = 0.0;
 	long              i        = 0;
 	
-	table = schema->elements;
-	if((element = (EDI_SimpleType *)hashtable_search(table, (void *)nodeID))){
+	if(element){
 		switch(element->type){
 			case EDI_DATA_STRING:
 				if(length > element->max){
