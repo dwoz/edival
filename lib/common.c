@@ -24,7 +24,7 @@ size_t strnlen (const char *string, size_t maxlen)
   return end ? (size_t) (end - string) : maxlen;
 }
 /******************************************************************************/
-char *strndup(const char *s, size_t n, const EDI_Memory_Handling_Suite *memsuite)
+char *EDI_strndup(const char *s, size_t n, const EDI_Memory_Handling_Suite *memsuite)
 {
     size_t len = strnlen(s, n);
     char *new = memsuite->malloc_fcn(len + 1);

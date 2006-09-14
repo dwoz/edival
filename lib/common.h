@@ -36,14 +36,12 @@ typedef void* (*EDI_StateHandler)(void *parser);
 /******************************************************************************/
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-/******************************************************************************/
-char *EDI_strdup(const char *);
-/******************************************************************************/
-char *strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
+size_t strnlen (const char *, size_t);
 #endif /* _GNU_SOURCE */
 
+char *EDI_strdup(const char *);
+char *EDI_strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
 inline int string_eq(const char*, const char*);
-size_t strnlen (const char *, size_t);
 
 #define EDI_GAP_SCAN(parser, pointer) \
 	if((pointer - parser->bufReadPtr) > 0){\
@@ -54,7 +52,7 @@ size_t strnlen (const char *, size_t);
 			}\
 		}\
 		if(junk){\
-			char *garbage = strndup(parser->bufReadPtr, prefix, parser->memsuite);\
+			char *garbage = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);\
 			if(!garbage){\
 				parser->errorCode = EDI_ERROR_NO_MEM;\
 				return parser->error;\

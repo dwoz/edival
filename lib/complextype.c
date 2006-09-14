@@ -34,7 +34,7 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 		return NULL;
 	}
 	node->header.type = type;
-	node->header.nodeID = strndup(id, strlen(id), schema->memsuite);
+	node->header.nodeID = EDI_strndup(id, strlen(id), schema->memsuite);
 	node->header.refCount = 0;
 
 	node->firstChild = NULL;

@@ -55,7 +55,7 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 			if((bufIter - parser->bufReadPtr) > 3){
 		        prefix = bufIter - parser->bufReadPtr - 3;
 		        if(prefix > 1 || !isspace(*(parser->bufReadPtr))){
-					invalid = strndup(parser->bufReadPtr, prefix, parser->memsuite);
+					invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
 					if(!invalid){
 						parser->errorCode = EDI_ERROR_NO_MEM;
 						return parser->error;
@@ -72,7 +72,7 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 	}
 	if(parser->bufReadPtr < parser->bufEndPtr && bufIter == parser->bufEndPtr){
         prefix = bufIter - parser->bufReadPtr;
-		invalid = strndup(parser->bufReadPtr, prefix, parser->memsuite);
+		invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
 		if(!invalid){
 			parser->errorCode = EDI_ERROR_NO_MEM;
 			return parser->error;

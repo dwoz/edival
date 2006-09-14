@@ -31,7 +31,7 @@ EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
 		return NULL;
 	}
 	node->header.type = EDITYPE_ELEMENT;
-	node->header.nodeID = strndup(id, strlen(id), schema->memsuite);
+	node->header.nodeID = EDI_strndup(id, strlen(id), schema->memsuite);
 	node->header.refCount = 0;
 	node->type = type;
 	if(type == EDI_DATA_DATE){

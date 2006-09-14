@@ -84,7 +84,7 @@ static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite,
 	if(schema){
 		schemaInit(schema);
 		if(name){
-			schema->identifier = strndup(name, strlen(name), schema->memsuite);
+			schema->identifier = EDI_strndup(name, strlen(name), schema->memsuite);
 		}
 	}
 	return schema;
@@ -116,7 +116,7 @@ char *EDI_GetSchemaId(EDI_Schema schema)
 void EDI_SetSchemaId(EDI_Schema schema, const char *id)
 {
 	if(schema){
-		schema->identifier = strndup(id, strlen(id), schema->memsuite);
+		schema->identifier = EDI_strndup(id, strlen(id), schema->memsuite);
 	}
 }
 /******************************************************************************/
