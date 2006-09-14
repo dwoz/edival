@@ -27,7 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 2
+#define EDI_MICRO_VERSION 3
 
 /******************************************************************************/
 /********** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ************/
@@ -133,7 +133,7 @@ void EDI_SetElementHandler(EDI_Parser, EDI_ElementHandler);
     stream.
     N.B. - this function will also be called for zero length components, i.e.,
     dat == '\0'.  If a segment contains composite element for which there is no
-    data, the EDI_ElementHandler callback will be called in instead of using
+    data, the EDI_ElementHandler callback will be called instead of using
     this callback multiple times.
 *******************************************************************************/
 typedef void (*EDI_ComponentHandler)(void *, const char *, int, int); 
@@ -188,7 +188,11 @@ void                EDI_MemFree(EDI_Parser, void *);
 void                EDI_ParserFree(EDI_Parser);
 
 /*******************************************************************************
+
+
         ********************** VALIDATION API **********************
+
+
 *******************************************************************************/
 
 struct EDI_SchemaStruct;
@@ -217,8 +221,8 @@ enum EDI_PrimitiveDataType {
     EDI_DATA_INTEGER     = 2,
     EDI_DATA_DECIMAL     = 3,
     EDI_DATA_DATE        = 4, /* CCYYMMDD */
-    EDI_DATA_TIME        = 5, /* HHMMSSdd */
-    EDI_DATA_BINARY      = 6  /* Binary data */
+    EDI_DATA_TIME        = 5  /* HHMMSSdd */
+    //EDI_DATA_BINARY      = 6  /* Binary data; not yet supported */
 };
 
 /*******************************************************************************
@@ -274,9 +278,12 @@ enum EDI_SyntaxType {
 
 /*******************************************************************************
     Constructs a new schema for validation.
-    Returns NULL if failure.
+    Returns NULL if failure.  The second function constructs a schema with the
+    identifier field populated.  The name field can be used by the calling
+    application to refer to one of multiple schemas loaded.
 *******************************************************************************/
 EDI_Schema EDI_SchemaCreate(void);
+EDI_Schema EDI_SchemaCreateNamed(const char *);
 
 /*******************************************************************************
     Constructs a new schema using the memory management suite referred to
@@ -284,9 +291,12 @@ EDI_Schema EDI_SchemaCreate(void);
     suite. 
    
     All further memory operations used for the created schema will come from
-    the given suite.
+    the given suite.  The second function constructs a schema with the
+    identifier field populated.  The name field can be used by the calling
+    application to refer to one of multiple schemas loaded.
 *******************************************************************************/
-EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *memsuite);
+EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *);
+EDI_Schema EDI_SchemaCreateNamed_MM(EDI_Memory_Handling_Suite *, const char *);
 
 
 void EDI_SchemaFree(EDI_Schema);
@@ -308,7 +318,7 @@ EDI_Schema EDI_RemoveSchema(EDI_Parser);
     Get or set the identifier on the schema object.
 *******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema);
-void  EDI_SetSchemaId(EDI_Schema, char*);
+void  EDI_SetSchemaId(EDI_Schema, const char *);
 
 /*******************************************************************************
  * Returns a new element type Schema node.  NULL if unsuccessful.  The element
@@ -399,7 +409,7 @@ EDI_AppendType   (EDI_Schema    ,
  segment is found, any time a segment is out of order, or if a particular
  segment has been repeated beyond the specified maximum allowed occurrences.
 *******************************************************************************/
-typedef void (*EDI_SegmentErrorHandler)(void *, enum EDI_SegmentValidationError);
+typedef void (*EDI_SegmentErrorHandler)(void *, const char *, enum EDI_SegmentValidationError);
 
 void EDI_SetSegmentErrorHandler(EDI_Schema, EDI_SegmentErrorHandler);
 
@@ -408,12 +418,15 @@ void EDI_SetSegmentErrorHandler(EDI_Schema, EDI_SegmentErrorHandler);
  error has been detected in the data stream and validation is activated.  Some
  possible errors include invalid string in a numeric element, invalid length of
  a data element, etc.  See "enum EDI_ElementValidationError" for more details.
+ If the element contains data and the error is not related to conditionally
+ included data elements, the subsequent call to the application's
+ registered element handler callback will contain the string corresponding to
+ the data.  The callback function must accept the void pointer to the user data,
+ the element position, the component position, and the error.
 *******************************************************************************/
 typedef void (*EDI_ElementErrorHandler)(void *, int, int, enum EDI_ElementValidationError);
 
 void EDI_SetElementErrorHandler(EDI_Schema, EDI_ElementErrorHandler);
-
-
 
 #ifdef __cplusplus
 }

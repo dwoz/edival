@@ -5,8 +5,6 @@
 #include <string.h>
 #include <math.h>
 
-#include <stdio.h>
-
 /*
  Credit for primes table: Aaron Krowne
  http://br.endernet.org/~akrowne/
@@ -274,24 +272,19 @@ hashtable_destroy(struct hashtable *h, int free_values)
     unsigned int i;
     struct entry *e, *f;
     struct entry **table = h->table;
-    if (free_values)
-    {
-        for (i = 0; i < h->tablelength; i++)
-        {
+    if(free_values){
+        for (i = 0; i < h->tablelength; i++){
             e = table[i];
             while (NULL != e){
             	f = e;
             	freekey(f->k);
             	free(f->v);
-            	free(f);
             	e = e->next;
+            	free(f);
             }
         }
-    }
-    else
-    {
-        for (i = 0; i < h->tablelength; i++)
-        {
+    } else {
+        for (i = 0; i < h->tablelength; i++){
             e = table[i];
             while(NULL != e){
             	f = e; 	

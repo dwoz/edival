@@ -35,17 +35,17 @@ EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
 	node->header.refCount = 0;
 	node->type = type;
 	if(type == EDI_DATA_DATE){
-		node->min = 6;
-		node->max = 8;
+		node->min = (minlen < 6) ? 6 : minlen;
+		node->max = (maxlen > 8) ? 8 : maxlen;
 	} else if(type == EDI_DATA_TIME){
-		node->min = 4;
-		node->max = 8;
+		node->min = (minlen < 4) ? 4 : minlen;
+		node->max = (maxlen > 8) ? 8 : maxlen;
 	} else {	
 		node->min = minlen;
 		node->max = maxlen;
 	}
 	node->values = NULL;
-	if(hashtable_insert(schema->elements, (void *)strdup(id), (void *)node)){
+	if(hashtable_insert(schema->elements, (void *)EDI_strdup(id), (void *)node)){
 		return (EDI_SchemaNode)node;
 	}
 	return NULL;
@@ -81,7 +81,7 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_Schema      schema,
 			if(!element->values){
 				element->values = create_hashtable(20);
 			}
-			if(hashtable_insert(element->values, (void *)strdup(value), (void *)strdup(value))){
+			if(hashtable_insert(element->values, (void *)EDI_strdup(value), (void *)EDI_strdup(value))){
 				error = VAL_VALID_ELEMENT;
 			}
 		}
@@ -234,7 +234,7 @@ void EDI_DisposeSimpleType(EDI_Schema     schema,
 		if(table){
 			element = (EDI_SimpleType*)hashtable_search(table, node->nodeID);
 			if(element && element->values){
-				hashtable_destroy(element->values, 0);
+				hashtable_destroy(element->values, EDI_TRUE);
 			}
 		}
 		FREE(schema, node->nodeID);

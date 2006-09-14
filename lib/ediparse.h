@@ -29,7 +29,7 @@ enum EDI_DocumentType {
 
 struct EDI_ParserStruct {
 	void                            *userData;
-	const EDI_Memory_Handling_Suite *memsuite;
+	EDI_Memory_Handling_Suite       *memsuite;
 	char                            *bufReadPtr;
 	char                            *bufEndPtr;
 	char                            *dataBuffer;

@@ -16,10 +16,11 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-//gcc scan837.c -I../include -L../lib -ledival -o scan837
+//gcc scan837.c -I../include -L../lib -ledival -o scan837 -lm
 
 #include <edival.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -30,6 +31,19 @@
 
 int group_start = 0;
 int counter = 0;
+
+void handleSegmentError(void *myData, const char *tag, enum EDI_SegmentValidationError err)
+{
+	if(!(!strcmp(tag, "GS") && err == SEGERR_UNDEFINED) &&
+	   !(!strcmp(tag, "GE") && err == SEGERR_UNDEFINED)){
+		fprintf(stderr, "*~*~* Segment error %d on %s\n", err, tag);
+	}
+}
+
+void handleElementError(void *myData, int element, int component, enum EDI_ElementValidationError err)
+{
+	fprintf(stderr, "\nElement error %d on element %2.2d-%d\n", err, element, component);
+}
 
 void load_standard(EDI_Parser p)
 {
@@ -1197,6 +1211,9 @@ void load_standard(EDI_Parser p)
 		EDI_StoreComplexNode(s, loop1010);
 		EDI_AppendType(s, loop1, loop1010, 1, 999999);
 		EDI_AppendType(s, loop1, EDI_GetComplexNodeByID(s, "SE"), 1, 1);
+		
+		EDI_SetSegmentErrorHandler(s, &handleSegmentError);
+		EDI_SetElementErrorHandler(s, &handleElementError);
 	}
 	return;
 }
@@ -1258,7 +1275,6 @@ int main(int argc, char **argv)
 	void *buff = NULL;
 	unsigned long j = 0;
 	unsigned int size;
-	struct timezone tz;
 	struct timeval tv;
 	double start_time, end_time, run_time;
 	struct stat statbuf;
@@ -1271,7 +1287,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	gettimeofday(&tv, &tz);
+	gettimeofday(&tv, NULL);
 	start_time = tv.tv_sec + (tv.tv_usec * 0.000001);
 
 	if((input = open(argv[1], O_RDONLY)) < 0){
@@ -1309,7 +1325,7 @@ int main(int argc, char **argv)
 	EDI_ParserFree(p);
 	close(input);
 
-	gettimeofday(&tv, &tz);
+	gettimeofday(&tv, NULL);
 	end_time = tv.tv_sec + (tv.tv_usec * 0.000001);
 	file_size = statbuf.st_size;
 	fprintf(stdout, "Processed %d Bytes of data\n", (int)file_size);

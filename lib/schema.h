@@ -40,8 +40,8 @@ struct EDI_SchemaStruct {
 	unsigned int                     prevElementIndex;
 	const EDI_Memory_Handling_Suite *memsuite;
 	EDI_Parser                       parser;
-	EDI_SegmentErrorHandler          handleSegmentError;
-	EDI_ElementErrorHandler          handleElementError;
+	EDI_SegmentErrorHandler          segmentErrorHandler;
+	EDI_ElementErrorHandler          elementErrorHandler;
 };
 /******************************************************************************/
 struct EDI_SchemaNodeStruct {

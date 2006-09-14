@@ -56,6 +56,7 @@ struct X12_ParserStruct {
 	int                             savedSegmentOffset;
 	int                             savedElementPosition;
 	int                             savedComponentPosition;
+	EDI_Schema                      x12Schema;
 	enum X12_ParseError             error;
 	enum EDI_SegmentValidationError segmentError;
 	enum X12_Delimiter              previous;

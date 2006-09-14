@@ -16,8 +16,11 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+//gcc scan997.c -I../include -L../lib -ledival -o scan997 -lm
+
 #include <edival.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -264,7 +267,6 @@ int main(int argc, char **argv)
 	void *buff = NULL;
 	unsigned long j = 0;
 	unsigned int size;
-	struct timezone tz;
 	struct timeval tv;
 	double start_time, end_time, run_time;
 	struct stat statbuf;
@@ -277,7 +279,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	
-	gettimeofday(&tv, &tz);
+	gettimeofday(&tv, NULL);
 	start_time = tv.tv_sec + (tv.tv_usec * 0.000001);
 
 	if((input = open(argv[1], O_RDONLY)) < 0){
@@ -316,7 +318,7 @@ int main(int argc, char **argv)
 	EDI_ParserFree(p);
 	close(input);
 
-	gettimeofday(&tv, &tz);
+	gettimeofday(&tv, NULL);
 	end_time = tv.tv_sec + (tv.tv_usec * 0.000001);
 	file_size = statbuf.st_size;
 	fprintf(stdout, "Processed %d Bytes of data\n", (int)file_size);

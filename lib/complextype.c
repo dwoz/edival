@@ -42,10 +42,6 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 	node->childCount = 0;
 	node->firstNote  = NULL;
 	node->finalNote  = NULL;
-	if(type == EDITYPE_LOOP){
-		((struct EDI_LoopNodeStruct *)node)->position = 0;
-		((struct EDI_LoopNodeStruct *)node)->values   = NULL;
-	}
 	if(type == EDITYPE_TRANSACTION){
 		schema->root = node;
 	}
@@ -57,7 +53,7 @@ void EDI_StoreComplexNode(EDI_Schema     schema,
 {
 	if(node && node->type != EDITYPE_ELEMENT){
 		hashtable_insert(schema->complexNodes, 
-		                 (void *)strdup(node->nodeID), 
+		                 (void *)EDI_strdup(node->nodeID), 
 		                 (void *)node);
 	}
 	return;
@@ -91,7 +87,7 @@ void EDI_AddSyntaxNote(EDI_Schema           schema  ,
 	if(node->type == EDITYPE_COMPOSITE || node-> type == EDITYPE_SEGMENT){
 		cNode = (EDI_ComplexType)node;
 		note = MALLOC(schema, sizeof(struct EDI_SyntaxNoteStruct));
-		positions = MALLOC(schema, sizeof(int)*count);
+		positions = MALLOC(schema, sizeof(unsigned int) * count);
 		if(note && positions){
 			note->type = type;
 			for(i = 0; i < count; i++){
@@ -106,7 +102,7 @@ void EDI_AddSyntaxNote(EDI_Schema           schema  ,
 				cNode->firstNote = cNode->finalNote = note;
 			}
 		} else {
-			fprintf(stderr, "Memory allocation error! complextyle.c:EDI_AddSyntaxNote\n");
+			exit(71);
 		}
 	} else {
 		fprintf(stderr, "Illegal operation - attempted to add syntax note to schema node of type %d\n", node->type);
@@ -170,7 +166,7 @@ EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
     		}
     		if(cParent->childCount == 0){
     			EDI_LoopNode loop = (EDI_LoopNode)parent;
-    			loop->startID = strdup(new->nodeID);
+    			loop->startID = EDI_strdup(new->nodeID);
     		}
     		break;
     	case EDITYPE_SEGMENT:

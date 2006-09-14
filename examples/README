@@ -6,7 +6,7 @@ cc scan997.c -ledival -o scan997
 
 If you have built edival (required) but not done a "make install" run
 
-cc scan997.c -I../include -L../lib -ledival -o scan997
+cc scan997.c -I../include -L../lib -ledival -o scan997 -lm
 
 
 scan837 is the same as scan997, except can be used to scan 837 health claims.

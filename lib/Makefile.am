@@ -2,7 +2,7 @@
 
 INCLUDES =
 
-AM_CFLAGS = -std=gnu99 -O3 -Wall -c -fmessage-length=0
+AM_CFLAGS = -std=c99 -O3 -Wall -c -fmessage-length=0
 
 lib_LTLIBRARIES = libedival.la
 
@@ -18,22 +18,22 @@ edival_private_h_SOURCES = \
 	statemachine.h         \
 	x12parser.h    
 
-edival_C_SOURCES =         \
-    common.c               \
-    complextype.c	       \
-	ediparse.c             \
-	hashtable.c            \
-	schema.c               \
-    simpletype.c           \
-	statemachine.c         \
+edival_C_SOURCES =	\
+	common.c				\
+	complextype.c		\
+	ediparse.c			\
+	hashtable.c			\
+	schema.c				\
+	simpletype.c		\
+	statemachine.c		\
 	x12parser.c
 	
-libedival_la_SOURCES =         \
+libedival_la_SOURCES =			\
 	$(edival_public_h_SOURCES) \
 	$(edival_private_h_SOURCES)\
 	$(edival_C_SOURCES)
 
-libedival_la_LDFLAGS =  \
+libedival_la_LDFLAGS = \
 	$(all_libraries)    \
 	-version-info 0:0:0 \
 	-no-undefined

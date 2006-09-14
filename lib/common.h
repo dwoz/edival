@@ -37,16 +37,23 @@ typedef void* (*EDI_StateHandler)(void *parser);
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 /******************************************************************************/
-size_t strnlen (const char *, size_t);
+char *EDI_strdup(const char *);
 /******************************************************************************/
 char *strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
-inline int string_eq(const char*, const char*);
 #endif /* _GNU_SOURCE */
 
+inline int string_eq(const char*, const char*);
+size_t strnlen (const char *, size_t);
+
 #define EDI_GAP_SCAN(parser, pointer) \
-	do { \
-		int prefix = pointer - parser->bufReadPtr;\
-		if(prefix && !isspace(*(parser->bufReadPtr))){\
+	if((pointer - parser->bufReadPtr) > 0){\
+		int junk = 0, prefix = pointer - parser->bufReadPtr;\
+		for(char *search = parser->bufReadPtr; search < pointer; *search++){\
+			if(!isspace(*search)){\
+				junk++;\
+			}\
+		}\
+		if(junk){\
 			char *garbage = strndup(parser->bufReadPtr, prefix, parser->memsuite);\
 			if(!garbage){\
 				parser->errorCode = EDI_ERROR_NO_MEM;\
@@ -56,6 +63,6 @@ inline int string_eq(const char*, const char*);
 			FREE(parser, garbage);\
         	parser->bufReadPtr = pointer;\
 		}\
-	} while(NULL)
+	}
 
 #endif /* EDICommon_INCLUDED */

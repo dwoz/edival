@@ -23,35 +23,37 @@
 #define SCHEMA_PUSH(segment) (schema->stack[++(schema->depth)] = segment)
 #define SCHEMA_SAVE(segment) (schema->stack[schema->depth] = segment)
 #define SCHEMA_POP()         (schema->stack[--(schema->depth)])
-#define CHECK_USAGE(segment)\
-if(segment->count < segment->max_occurs){\
-	segment->count++;\
-	SCHEMA_SAVE(segment);\
-	if(error){\
-		return error;\
-	} else {\
-		return SEGERR_NONE;\
-	}\
-} else {\
-	if(segment->previousSibling){\
-		return SEGERR_EXCEED_REPEAT;\
-	}\
-}
+#define PARENT_NODE          ((schema->depth > 0) ? \
+                                ((EDI_ComplexType) \
+                                   (schema->stack[schema->depth - 1])->node \
+                                ) : schema->root)
 /******************************************************************************/
-static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *); 
+static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *, const char *);
 static void schemaInit(EDI_Schema);
 /******************************************************************************/
 EDI_Schema EDI_SchemaCreate(void)
 {
-	return schemaCreate(NULL);	
+	return schemaCreate(NULL, NULL);	
+}
+/******************************************************************************/
+EDI_Schema EDI_SchemaCreateNamed(const char *name)
+{
+	return schemaCreate(NULL, name);	
 }
 /******************************************************************************/
 EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *memsuite)
 {
-	return schemaCreate(memsuite);	
+	return schemaCreate(memsuite, NULL);
 }
 /******************************************************************************/
-static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite)
+EDI_Schema EDI_SchemaCreateNamed_MM(EDI_Memory_Handling_Suite *memsuite,
+                                    const char                *name    )
+{
+	return schemaCreate(memsuite, name);
+}
+/******************************************************************************/
+static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite,
+                               const char                *name    )
 {
 	EDI_Schema schema = NULL;
 	
@@ -81,17 +83,25 @@ static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite)
 	}
 	if(schema){
 		schemaInit(schema);
+		if(name){
+			schema->identifier = strndup(name, strlen(name), schema->memsuite);
+		}
 	}
 	return schema;
 }
 /******************************************************************************/
 static void schemaInit(EDI_Schema schema)
 {
-	schema->identifier   = "";
-	schema->complexNodes = create_hashtable(20);
-	schema->elements     = create_hashtable(20);
-	schema->root         = NULL;
-	schema->depth        = 0;
+	schema->identifier       = "";
+	schema->elements         = create_hashtable(20);
+	schema->complexNodes     = create_hashtable(20);
+	schema->root             = NULL;
+	schema->depth            = 0;
+	schema->prevElementNode  = NULL;
+	schema->prevElementIndex = 0;
+	schema->parser           = NULL;
+	schema->segmentErrorHandler = NULL;
+	schema->elementErrorHandler = NULL;
 }
 /******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema schema)
@@ -103,88 +113,150 @@ char *EDI_GetSchemaId(EDI_Schema schema)
 	return id;
 }
 /******************************************************************************/
-void EDI_SetSchemaId(EDI_Schema schema, char *id)
+void EDI_SetSchemaId(EDI_Schema schema, const char *id)
 {
 	if(schema){
-		schema->identifier = id;
+		schema->identifier = strndup(id, strlen(id), schema->memsuite);
 	}
 }
 /******************************************************************************/
 void EDI_SetSegmentErrorHandler(EDI_Schema schema, EDI_SegmentErrorHandler h)
 {
-    schema->handleSegmentError = h;
+    schema->segmentErrorHandler = h;
 }
 /******************************************************************************/
 void EDI_SetElementErrorHandler(EDI_Schema schema, EDI_ElementErrorHandler h)
 {
-    schema->handleElementError = h;
+    schema->elementErrorHandler = h;
 }
 /******************************************************************************/
 enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
                                                             const char *nodeID)
 {
-	unsigned int                    startDepth = schema->depth;
-	unsigned int                    startCount = 0;
-	EDI_ChildNode                   startNode  = NULL;
-	EDI_ChildNode                   current    = NULL;
-	enum EDI_SegmentValidationError error      = SEGERR_NONE;
+	unsigned int                    startDepth    = schema->depth;
+	unsigned int                    startCount    = 0;
+	unsigned int                    mCount        = 0;
+	EDI_ChildNode                   startNode     = NULL;
+	EDI_ChildNode                   current       = NULL;
+	enum EDI_SegmentValidationError error         = SEGERR_NONE;
+	char                           *mandatory[20];
 	
 	startNode = schema->stack[startDepth];
 	if(!startNode){
-		return SEGERR_UNDEFINED;
-	}
-	startCount = startNode->count;
-	current = startNode;
-	while(current){
-		if(current->node->type == EDITYPE_LOOP){
-			EDI_LoopNode loop = (EDI_LoopNode)(current->node);
-			if(string_eq(nodeID, loop->startID)){
-				SCHEMA_SAVE(current);
-				if(loop->position == 0){
-					if(current->count >=  current->max_occurs){
+		error = SEGERR_UNDEFINED;
+	} else {
+		startCount = startNode->count;
+		current = startNode;
+		while(current){
+			if(current->node->type == EDITYPE_SEGMENT){
+				if(string_eq(nodeID, current->node->nodeID)){
+					if(PARENT_NODE->firstChild == current && current->count > 0){
+						while(current){
+							if(current->count < current->min_occurs){
+								error = SEGERR_MANDATORY;
+								if(schema->segmentErrorHandler){
+									schema->segmentErrorHandler(
+										schema->parser->userData,
+										(current->node->type == EDITYPE_LOOP) ? 
+											((EDI_LoopNode)current->node)->startID :
+											current->node->nodeID,
+										error
+									);
+								}
+								error = SEGERR_NONE;
+							}
+							current->count = 0;
+							current = current->nextSibling;
+						}
+						current = PARENT_NODE->firstChild;
+					}
+					current->count++;
+					if(current->count > current->max_occurs){
+							error = SEGERR_EXCEED_REPEAT;
+					}
+					SCHEMA_SAVE(current);
+					break;
+				}
+			} else {
+				EDI_LoopNode loop = (EDI_LoopNode)(current->node);
+				if(string_eq(nodeID, loop->startID)){
+					SCHEMA_SAVE(current);
+					current->count++;
+					if(current->count > current->max_occurs){
 						error = SEGERR_LOOP_EXCEEDED;
 					}
-					schema->depth++;
-					current->count++;
-					CHECK_USAGE(loop->node.firstChild);
-				} else {
-					//Can't determine the loop until a later element.
-					return SEGERR_LOOP_SEEK;
+					loop->node.firstChild->count++;
+					SCHEMA_PUSH(loop->node.firstChild);
+					break;
 				}
 			}
-		} else {
-			if(string_eq(nodeID, current->node->nodeID)){
-				CHECK_USAGE(current);
+			if(current->count < current->min_occurs){
+				mandatory[mCount++] = current->node->nodeID;
 			}
-		}
-		if(current->count < current->min_occurs){
-			fprintf(stderr, "\nMissing Mandatory %s (used %d) looking for '%s'\n", current->node->nodeID, current->count, nodeID);
-			error = SEGERR_MANDATORY;
-		}
-		if(current->nextSibling){
-			current = current->nextSibling;
-		} else {
-			EDI_ChildNode clear = NULL;
-			if(schema->depth > 0){
-				current = SCHEMA_POP();
-				clear = ((EDI_ComplexType)current->node)->firstChild;
+			if(current->nextSibling){
+				current = current->nextSibling;
 			} else {
-				current  = schema->root->firstChild;
-				if(!string_eq(nodeID, current->node->nodeID)){
-					//Unexpected segment... must reset our position!
-					schema->depth = startDepth;
-					startNode->count = startCount;
-					fprintf(stderr, "undexpected segment %s\n", nodeID);
-					return SEGERR_UNEXPECTED;
+				if(schema->depth == startDepth){	
+					current = startNode->previousSibling;
+					while(current){
+						if(string_eq(nodeID, current->node->nodeID) &&
+							PARENT_NODE->firstChild != current){
+							error = SEGERR_SEQUENCE;
+							current->count++;
+							if(current->count > current->max_occurs){
+								if(schema->segmentErrorHandler){
+									schema->segmentErrorHandler(
+										schema->parser->userData,
+										current->node->nodeID,
+										error
+									);
+								}
+								error = SEGERR_EXCEED_REPEAT;
+							}
+						}
+						current = current->previousSibling;
+					}
+					if(error) break;
+				} 
+				EDI_ChildNode clear = NULL;
+				if(schema->depth > 0){
+					current = SCHEMA_POP();
+					clear = ((EDI_ComplexType)current->node)->firstChild;
 				} else {
-					clear = current;
+					current  = schema->root->firstChild;
+					if(!string_eq(nodeID, current->node->nodeID)){
+						//Unexpected segment... must reset our position!
+						schema->depth = startDepth;
+						startNode->count = startCount;
+						if(EDI_GetComplexNodeByID(schema, nodeID)){
+							error = SEGERR_UNEXPECTED;
+						} else {
+							error = SEGERR_UNDEFINED;
+						}
+						mCount = 0;
+						break; //Wasn't found; cut our losses and go back.
+					} else {
+						clear = current;
+					}
+				}
+				//Reset the usage of child nodes to 0 since we are moving up a level
+				while(clear){
+					clear->count = 0;
+					clear = clear->nextSibling;
 				}
 			}
-			//Reset the usage of child nodes to 0 since we are moving up a level
-			while(clear){
-				clear->count = 0;
-				clear = clear->nextSibling;
-			}
+		}
+	}
+	if(error && schema->segmentErrorHandler){
+		schema->segmentErrorHandler(schema->parser->userData,	nodeID, error);
+	}
+	if(mCount && schema->segmentErrorHandler){
+		for(int i = 0; i < mCount; i++){
+			schema->segmentErrorHandler(
+				schema->parser->userData,
+				mandatory[i],
+				SEGERR_MANDATORY
+			);
 		}
 	}
 	return error;
@@ -257,7 +329,12 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
 		if(length){
 			element->count++;
 			if(element->count <= element->max_occurs){
-				error = EDI_CheckElementConstraints(schema, (EDI_SimpleType *)(element->node), value, length);
+				error = EDI_CheckElementConstraints(
+					schema, 
+					(EDI_SimpleType *)(element->node), 
+					value, 
+					length
+				);
 			} else {
 				error = VAL_REPETITION_EXCEEDED;
 			}
@@ -265,38 +342,45 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema schema        ,
 			error = VAL_MANDATORY_ELEMENT;
 		}
 	}
+	if(error && schema->elementErrorHandler){
+		schema->elementErrorHandler(
+			schema->parser->userData, 
+			elementIndex, 
+			componentIndex, 
+			error
+		);
+	}
 	return error;
 }
 /******************************************************************************/
 enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema,
                                                    int        element)
 {
-	int                             i, j   = 0;
-	int                             found  = 0;
-	EDI_Bool                        anchor = EDI_FALSE;
-	EDI_ComplexType                 parent = NULL;
-	EDI_SyntaxNote                  note   = NULL;
-	EDI_ChildNode                   child  = NULL;
-	enum EDI_ElementValidationError error  = VAL_VALID_ELEMENT;
+	unsigned int                    i, j;
+	int                             found     = 0;
+	EDI_Bool                        anchor    = EDI_FALSE;
+	EDI_ComplexType                 parent    = NULL;
+	EDI_SyntaxNote                  note      = NULL;
+	EDI_ChildNode                   child     = NULL;
+	enum EDI_ElementValidationError error     = VAL_VALID_ELEMENT;
 
 	parent = (EDI_ComplexType)(schema->stack[schema->depth])->node;
 	if(parent){
-		if(element-- > 0){
+		i = element;
+		if(i-- > 0){
 			child = parent->firstChild;
-			while(element--){
+			while(i--){
 				child = child->nextSibling;
 			}
 			parent = (EDI_ComplexType)child->node;
 		}
 		note = parent->firstNote;
-		child = parent->firstChild;
 		while(note && !error){
-			found = 0;
-			i = j = 0;
+			found = i = j = 0;
 			anchor = EDI_FALSE;
-			while(child){
-				i++;
-				if(i == note->positions[j]){
+			child = parent->firstChild;
+			while(child && j < note->count){
+				if(++i == note->positions[j]){
 					j++;
 					if(child->count > 0){
 						found++;
@@ -311,26 +395,98 @@ enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema,
 			case EDI_SYNTAX_PAIRED:
 				if(found && found != note->count){
 					error = VAL_MISSING_CONDITIONAL;
+					if(schema->elementErrorHandler){
+						child = parent->firstChild;
+						i = j = 0;
+						while(child && j < note->count){
+							if(++i == note->positions[j]){
+								if(child->count == 0){
+									schema->elementErrorHandler(
+										schema->parser->userData,
+										(element > 0) ? element : note->positions[j],
+										(element > 0) ? note->positions[j] : 0,
+										error
+									);
+								}
+								j++;
+							}
+							child = child->nextSibling;
+						}
+					}
 				}
 				break;
 			case EDI_SYNTAX_REQUIRED:
 				if(!found){
 					error = VAL_MISSING_CONDITIONAL;
+					if(schema->elementErrorHandler){
+						schema->elementErrorHandler(
+							schema->parser->userData,
+							(element > 0) ? element : note->positions[0],
+							(element > 0) ? note->positions[0] : 0,
+							error
+						);
+					}
 				}
 				break;
 			case EDI_SYNTAX_EXCLUSION:
 				if(found > 1){
 					error = VAL_EXCLUSION_VIOLATED;
+					if(schema->elementErrorHandler){
+						child = parent->firstChild;
+						found = i = j = 0;
+						while(child && j < note->count){
+							if(++i == note->positions[j]){
+								if(child->count > 0){
+									if(++found > 1){
+										schema->elementErrorHandler(
+											schema->parser->userData,
+											(element > 0) ? element : note->positions[j],
+											(element > 0) ? note->positions[j] : 0,
+											error
+										);
+									}
+								}
+								j++;
+							}
+							child = child->nextSibling;
+						}
+					}
 				}
 				break;
 			case EDI_SYNTAX_CONDITION:
 				if(anchor && found < note->count){
 					error = VAL_MISSING_CONDITIONAL;
+					if(schema->elementErrorHandler){
+						child = parent->firstChild;
+						found = i = j = 0;
+						while(child && j < note->count){
+							if(++i == note->positions[j]){
+								if(child->count == 0){
+									schema->elementErrorHandler(
+										schema->parser->userData,
+										(element > 0) ? element : note->positions[j],
+										(element > 0) ? note->positions[j] : 0,
+										error
+									);
+								}
+								j++;
+							}
+							child = child->nextSibling;
+						}
+					}
 				}
 				break;
 			case EDI_SYNTAX_LIST:
 				if(anchor && found == 1){
 					error = VAL_MISSING_CONDITIONAL;
+					if(schema->elementErrorHandler){
+						schema->elementErrorHandler(
+							schema->parser->userData,
+							(element > 0) ? element : note->positions[1],
+							(element > 0) ? note->positions[1] : 0,
+							error
+						);
+					}
 				}
 				break;
 			}
@@ -346,9 +502,12 @@ void EDI_SchemaFree(EDI_Schema schema)
 {
 	void (*free_fcn)(void *ptr);
 
-	if(strcmp(EDI_GetSchemaId(schema->parser->schema), schema->identifier) == 0){
+	if(schema->parser && EDI_GetSchemaId(schema->parser->schema) && 
+	   schema->identifier &&
+	   strcmp(EDI_GetSchemaId(schema->parser->schema), schema->identifier) == 0){
 		schema->parser->schema = NULL;
 		schema->parser->validate = EDI_FALSE;
+		FREE(schema, schema->identifier);
 	}
 	EDI_DisposeNode(schema, (EDI_SchemaNode)schema->root);
 	hashtable_destroy(schema->complexNodes, 0);

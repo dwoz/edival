@@ -42,8 +42,6 @@ struct EDI_ComplexTypeStruct {
 struct EDI_LoopNodeStruct {
 	struct EDI_ComplexTypeStruct node;
 	char                        *startID;
-	unsigned int                 position;
-	struct hashtable            *values;
 };
 /******************************************************************************/
 struct EDI_SyntaxNoteStruct {

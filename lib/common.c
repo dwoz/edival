@@ -45,3 +45,12 @@ inline int string_eq(const char* str1, const char* str2)
 	}
 	return 0;
 }
+/******************************************************************************/
+char *EDI_strdup(const char *s)
+{
+	char *new = (char *)malloc(strlen(s) + 1);
+	if(new){
+		strcpy(new, s);
+	}
+	return new;
+}
