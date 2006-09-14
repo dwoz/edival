@@ -1,3 +1,21 @@
+2006-09-14:
+	common.[ch]:
+		-Add and convert several internally defined string functions to help with C99 compliance.
+	edival.h:
+		-Bump micro version to 3 (release 0.1.3)
+		-Disallow binary data element types for now.
+	schema.[ch]:
+		-Too many to list... many fixes with segment, element, and syntax node validation.
+		-Improvements in segment error reporting and accuracy.
+	simpletype.c:
+		-Force restriction of date fields to be between 6 and 8 characters.
+		-Force restriction of time fields to be between 4 and 8 characters.
+	x12parser.[ch]:
+		-Cleanup/remove many debugging printf statements.
+		-Added x12 parser INTERNAL schema to validate the elements of the ISA/IEA segments.
+	Other:
+		-Various cleanups and fixes not noted.
+
 2006-08-29:
 	edival.h:
 		-Bump micro version to 2 (release 0.1.2)
