@@ -53,7 +53,6 @@ struct X12_ParserStruct {
 	unsigned char                   release;
 	char                            delimiters[4];
 	char                           *savedTag;
-	int                             savedSegmentOffset;
 	int                             savedElementPosition;
 	int                             savedComponentPosition;
 	EDI_Schema                      x12Schema;

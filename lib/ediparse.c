@@ -147,12 +147,13 @@ static void parserInit(EDI_Parser parser)
 	parser->userData              = NULL;
 	parser->bufReadPtr            = parser->dataBuffer;
 	parser->bufEndPtr             = parser->dataBuffer;
-	parser->parsing               = EDI_INITIALIZED;
+	parser->state                 = EDI_INITIALIZED;
 	parser->errorCode             = EDI_ERROR_NONE;
 	parser->segmentStartHandler   = NULL;
 	parser->segmentEndHandler     = NULL;
+	parser->compositeStartHandler = NULL;
+	parser->compositeEndHandler   = NULL;
 	parser->elementHandler        = NULL;
-	parser->componentHandler      = NULL;
 	parser->nonEDIDataHandler     = NULL;
 	parser->seekHeader            = (void *)seekHeader;
 	parser->error                 = (void *)error;	
@@ -181,14 +182,19 @@ void EDI_SetSegmentEndHandler(EDI_Parser parser, EDI_SegmentEndHandler h)
     parser->segmentEndHandler = h;
 }
 /******************************************************************************/
+void EDI_SetCompositeStartHandler(EDI_Parser parser, EDI_CompositeStartHandler h)
+{
+    parser->compositeStartHandler = h;
+}
+/******************************************************************************/
+void EDI_SetCompositeEndHandler(EDI_Parser parser, EDI_CompositeEndHandler h)
+{
+    parser->compositeEndHandler = h;
+}
+/******************************************************************************/
 void EDI_SetElementHandler(EDI_Parser parser, EDI_ElementHandler h)
 {
     parser->elementHandler = h;
-}
-/******************************************************************************/
-void EDI_SetComponentHandler(EDI_Parser parser, EDI_ComponentHandler h)
-{
-    parser->componentHandler = h;
 }
 /******************************************************************************/
 void EDI_SetRepeatHandler(EDI_Parser parser, EDI_RepeatHandler h)
@@ -221,7 +227,7 @@ EDI_Bool EDI_ParserReset(EDI_Parser parser)
 void *EDI_GetBuffer(EDI_Parser parser, int len)
 {
 
-    switch (parser->parsing) {
+    switch (parser->state) {
         case EDI_SUSPENDED:
             parser->errorCode = EDI_ERROR_SUSPENDED;
             return NULL;
@@ -306,7 +312,7 @@ enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
 {
     void *buffer = NULL;
 
-    switch (parser->parsing) {
+    switch (parser->state) {
         case EDI_SUSPENDED:
             parser->errorCode = EDI_ERROR_SUSPENDED;
             return EDI_STATUS_ERROR;
@@ -314,7 +320,7 @@ enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
             parser->errorCode = EDI_ERROR_FINISHED;
             return EDI_STATUS_ERROR;
         default:
-            parser->parsing = EDI_PARSING;
+            parser->state = EDI_PARSING;
     }
     buffer = EDI_GetBuffer(parser, len);
     if (buffer == NULL){
@@ -327,22 +333,42 @@ enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
 /******************************************************************************/
 enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len)
 {
-    enum EDI_Error error;
+	enum EDI_Error error;
 
-    switch (parser->parsing) {
-        case EDI_SUSPENDED:
-            parser->errorCode = EDI_ERROR_SUSPENDED;
-            return EDI_STATUS_ERROR;
-        case EDI_FINISHED:
-            parser->errorCode = EDI_ERROR_FINISHED;
-            return EDI_STATUS_ERROR;
-        default:
-            parser->parsing = EDI_PARSING;
-    }
+	if(!parser->segmentStartHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered event: Segment Start\n");
+		exit(70);
+	}
+	if(!parser->segmentEndHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered event: Segment End\n");
+		exit(70);
+	}
+	if(!parser->compositeStartHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered event: Composite Start\n");
+		exit(70);
+	}
+	if(!parser->compositeEndHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered event: Composite End\n");
+		exit(70);
+	}
+	if(!parser->elementHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered event: Element\n");
+		exit(70);
+	}
+	switch (parser->state) {
+		case EDI_SUSPENDED:
+			parser->errorCode = EDI_ERROR_SUSPENDED;
+			return EDI_STATUS_ERROR;
+		case EDI_FINISHED:
+			parser->errorCode = EDI_ERROR_FINISHED;
+			return EDI_STATUS_ERROR;
+		default:
+			parser->state = EDI_PARSING;
+	}
 	if(!(parser->machine)){
 		parser->machine = EDI_StateMachineCreate(parser->memsuite);
 		if(!(parser->machine)){
-            parser->errorCode = EDI_ERROR_NO_MEM;
+			parser->errorCode = EDI_ERROR_NO_MEM;
 			return EDI_STATUS_ERROR;
 		}
 		EDI_AddState(parser->machine, parser->seekHeader, 0);
@@ -353,15 +379,15 @@ enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len)
 	*(parser->bufEndPtr) = '\0';
 	error = EDI_StateMachineRun(parser->machine, parser);
 	switch(error){
-        case EDI_ERROR_NONE:
-	        parser->errorCode = EDI_ERROR_NONE;
-	        return EDI_STATUS_OK;
-	    case EDI_ERROR_SUSPENDED:
-	        parser->errorCode = EDI_ERROR_NONE;
-	        return EDI_STATUS_SUSPENDED;
-	    default:
-	        parser->errorCode = error;
-	        return EDI_STATUS_ERROR;
+		case EDI_ERROR_NONE:
+			parser->errorCode = EDI_ERROR_NONE;
+			return EDI_STATUS_OK;
+		case EDI_ERROR_SUSPENDED:
+			parser->errorCode = EDI_ERROR_NONE;
+			return EDI_STATUS_SUSPENDED;
+		default:
+			parser->errorCode = error;
+			return EDI_STATUS_ERROR;
 	}
 }
 /******************************************************************************/
@@ -379,10 +405,9 @@ enum EDI_Status EDI_ResumeParser(EDI_Parser parser)
 	return EDI_STATUS_ERROR;
 }
 /******************************************************************************/
-void EDI_GetParsingStatus(EDI_Parser parser, EDI_ParsingStatus *status)
+enum EDI_ParsingState EDI_GetParserState(EDI_Parser parser)
 {
-	fprintf(stderr, "FIXME: EDI_GetParsingStatus is not yet implemented.\n");
-	return;
+	return parser->state;
 }
 /******************************************************************************/
 enum EDI_Error EDI_GetErrorCode(EDI_Parser parser)
@@ -410,9 +435,7 @@ void EDI_ParserFree(EDI_Parser parser)
 	void (*free_fcn)(void *ptr);
 
 	if(parser->schema){
-		fprintf(stderr, "here\n");
 		EDI_RemoveSchema(parser);
-		fprintf(stderr, "there\n");
 	}
 	if(parser->child){
 		parser->freeChild(parser);

@@ -27,7 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 3
+#define EDI_MICRO_VERSION 4
 
 /******************************************************************************/
 /********** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ************/
@@ -52,22 +52,17 @@ enum EDI_Error {
 };
 
 enum EDI_Status {
-    EDI_STATUS_OK               = 0,
-    EDI_STATUS_SUSPENDED        = 1,
-    EDI_STATUS_ERROR            = 2
+	EDI_STATUS_OK               = 0,
+	EDI_STATUS_SUSPENDED        = 1,
+	EDI_STATUS_ERROR            = 2
 };
 
-enum EDI_Parsing {
-    EDI_INITIALIZED,
-    EDI_PARSING,
-    EDI_FINISHED,
-    EDI_SUSPENDED
+enum EDI_ParsingState {
+	EDI_INITIALIZED,
+	EDI_PARSING,
+	EDI_FINISHED,
+	EDI_SUSPENDED
 };
-
-typedef struct {
-    enum EDI_Parsing parsing;
-    EDI_Bool finalBuffer;
-} EDI_ParsingStatus;
 
 typedef struct {
   void  *(*malloc_fcn) (size_t size);
@@ -104,7 +99,7 @@ void EDI_SetUserData(EDI_Parser parser, void *p);
     This is called when a segment start tag is found in the data stream.  The
     arguments are the userData structure and a tag indicating the segment.
 *******************************************************************************/
-typedef void (*EDI_SegmentStartHandler)(void *, const char *, int);
+typedef void (*EDI_SegmentStartHandler)(void *, const char *);
 
 void EDI_SetSegmentStartHandler(EDI_Parser, EDI_SegmentStartHandler);
 
@@ -119,26 +114,31 @@ void EDI_SetSegmentEndHandler(EDI_Parser, EDI_SegmentEndHandler);
 
 
 /*******************************************************************************
+    This is called when a composite structure is found in the data stream.  The
+    only argument is the userData structure.
+*******************************************************************************/
+typedef void (*EDI_CompositeStartHandler)(void *);
+
+void EDI_SetCompositeStartHandler(EDI_Parser, EDI_CompositeStartHandler);
+
+
+/*******************************************************************************
+    This is called when a composite end is found in the data stream. The only
+    argument is the userData structure.
+*******************************************************************************/
+typedef void (*EDI_CompositeEndHandler)(void *);
+
+void EDI_SetCompositeEndHandler(EDI_Parser, EDI_CompositeEndHandler);
+
+
+/*******************************************************************************
     This is called when an element is found in the data stream.
     N.B. - this function will also be called for zero length elements, i.e.,
     dat == '\0'
 *******************************************************************************/
-typedef void (*EDI_ElementHandler)(void *, const char *, int);
+typedef void (*EDI_ElementHandler)(void *, const char *);
 
 void EDI_SetElementHandler(EDI_Parser, EDI_ElementHandler);
-
-
-/*******************************************************************************
-    This is called when a component of a composite element is found in the data 
-    stream.
-    N.B. - this function will also be called for zero length components, i.e.,
-    dat == '\0'.  If a segment contains composite element for which there is no
-    data, the EDI_ElementHandler callback will be called instead of using
-    this callback multiple times.
-*******************************************************************************/
-typedef void (*EDI_ComponentHandler)(void *, const char *, int, int); 
-
-void EDI_SetComponentHandler(EDI_Parser, EDI_ComponentHandler);
 
 
 /*******************************************************************************
@@ -161,18 +161,17 @@ typedef void (*EDI_NonEDIDataHandler)(void *, const char *);
 
 void EDI_SetNonEDIDataHandler(EDI_Parser, EDI_NonEDIDataHandler);
 
-
-EDI_Bool            EDI_ParserReset(EDI_Parser);
-void               *EDI_GetBuffer(EDI_Parser, int);
-enum EDI_Status     EDI_Parse(EDI_Parser, const char *, int);
-enum EDI_Status     EDI_ParseBuffer(EDI_Parser, int);
+EDI_Bool              EDI_ParserReset(EDI_Parser);
+void                 *EDI_GetBuffer(EDI_Parser, int);
+enum EDI_Status       EDI_Parse(EDI_Parser, const char *, int);
+enum EDI_Status       EDI_ParseBuffer(EDI_Parser, int);
+enum EDI_ParsingState EDI_GetParserState(EDI_Parser);
 
 /*******************************************************************************
     These functions are not yet implemented.
 *******************************************************************************/
-enum EDI_Status     EDI_StopParser(EDI_Parser, EDI_Bool);
-enum EDI_Status     EDI_ResumeParser(EDI_Parser);
-void                EDI_GetParsingStatus(EDI_Parser, EDI_ParsingStatus *);
+enum EDI_Status       EDI_StopParser(EDI_Parser, EDI_Bool);
+enum EDI_Status       EDI_ResumeParser(EDI_Parser);
 
 /*******************************************************************************
     Get the currently set error code from the parser object.
@@ -403,6 +402,27 @@ EDI_AppendType   (EDI_Schema    ,
                   unsigned int  ,  /* Minimum occurances of the child */
                   unsigned int  ); /* Maximum occurances of the child */
 
+
+/*******************************************************************************
+    This is called when a loop structure is found in the data stream.  The
+    arguments are the userData structure (from the parser) and the loop's ID, 
+    as set in the schema.
+*******************************************************************************/
+typedef void (*EDI_LoopStartHandler)(void *, const char *);
+
+void EDI_SetLoopStartHandler(EDI_Schema, EDI_LoopStartHandler);
+
+
+/*******************************************************************************
+    This is called when a loop end is found in the data stream. The arguments
+    are the userData structure (from the parser) and the loop ID of the ending
+    loop.
+*******************************************************************************/
+typedef void (*EDI_LoopEndHandler)(void *, const char *);
+
+void EDI_SetLoopEndHandler(EDI_Schema, EDI_LoopEndHandler);
+
+
 /*******************************************************************************
  The SegmentErrorHandler function will be called at any point that a segment
  validation error has occurred.  This will generally happen any time an unknown
@@ -412,6 +432,7 @@ EDI_AppendType   (EDI_Schema    ,
 typedef void (*EDI_SegmentErrorHandler)(void *, const char *, enum EDI_SegmentValidationError);
 
 void EDI_SetSegmentErrorHandler(EDI_Schema, EDI_SegmentErrorHandler);
+
 
 /*******************************************************************************
  The ElementErrorHandler function will be called at any point that an element

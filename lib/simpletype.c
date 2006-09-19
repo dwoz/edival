@@ -169,7 +169,7 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      sche
 				}
 				llvalue = strtoll(value, &invalid, 10);
 				if(value[0] == '\0' || *invalid != '\0'){
-					return VAL_CHAR_ERROR;
+					return VAL_DATE_ERROR;
 				}
 				long date[] = {0, 0, 0};
 				date[2] = llvalue % 100;
@@ -185,7 +185,6 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      sche
 				} else {
 					date[0] += llvalue * 100;	
 				}
-				//fprintf(stderr, "\nDate is %4.4ld-%2.2ld-%2.2ld\n", date[0], date[1], date[2]); 
 				if(!DATE_IS_VALID(date[0], date[1], date[2])){
 					return VAL_DATE_ERROR;
 				}
@@ -200,7 +199,7 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      sche
 				}
 				llvalue = strtoll(value, &invalid, 10);
 				if(value[0] == '\0' || *invalid != '\0'){
-					return VAL_CHAR_ERROR;
+					return VAL_TIME_ERROR;
 				}
 				long time[] = {0, 0, 0, 0};
 				for(i = length; i > 0; i-=2){

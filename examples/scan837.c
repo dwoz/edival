@@ -16,7 +16,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-//gcc scan837.c -I../include -L../lib -ledival -o scan837 -lm
+//gcc scan837.c -std=c99 -I../include -L../lib -lm -ledival -o scan837
 
 #include <edival.h>
 #include <stdio.h>
@@ -31,6 +31,12 @@
 
 int group_start = 0;
 int counter = 0;
+int depth = 0;
+char prefix[50];
+char curr_seg[4];
+int  curr_e = 0;
+int  curr_c = 0;
+int  is_comp = 0;
 
 void handleSegmentError(void *myData, const char *tag, enum EDI_SegmentValidationError err)
 {
@@ -44,6 +50,29 @@ void handleElementError(void *myData, int element, int component, enum EDI_Eleme
 {
 	fprintf(stderr, "\nElement error %d on element %2.2d-%d\n", err, element, component);
 }
+
+void handleLoopStart(void *myData, const char *loopID)
+{
+	fprintf(stderr, "%s<%s>\n", prefix, loopID);
+	depth++;
+	prefix[0] = '\0';
+	for(int i = 0; i < depth; i++){
+		strcat(prefix, " ");
+	}
+	return;
+}
+
+void handleLoopEnd(void *myData, const char *loopID)
+{
+	depth--;
+	prefix[0] = '\0';
+	for(int i = 0; i < depth; i++){
+		strcat(prefix, " ");
+	}
+	fprintf(stderr, "%s</%s>\n", prefix, loopID);
+	return;
+}
+
 
 void load_standard(EDI_Parser p)
 {
@@ -128,7 +157,7 @@ void load_standard(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_DECIMAL, "782", 1, 18);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1343", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1331", 1, 2);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "1332", 1, 2);
+		EDI_CreateElementType(s, EDI_DATA_DECIMAL, "1332", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1325", 1, 1);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1359", 1, 1);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1363", 1, 1);
@@ -253,42 +282,6 @@ void load_standard(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_STRING, "499", 1, 10);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "289", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "96", 1, 10);
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C040");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "128"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "128"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "128"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 0, 1);
-		EDI_StoreComplexNode(s, parent);
-
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C035");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1222"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "559"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1073"), 0, 1);
-		EDI_StoreComplexNode(s, parent);
-
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C023");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1331"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1332"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1325"), 0, 1);
-		EDI_StoreComplexNode(s, parent);
-
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C024");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1362"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1362"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1362"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "156"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "26"), 0, 1);
-		EDI_StoreComplexNode(s, parent);
-
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C002");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
-		EDI_StoreComplexNode(s, parent);
 
 		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C001");
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "355"), 1, 1);
@@ -308,14 +301,12 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "649"), 0, 1);
 		EDI_StoreComplexNode(s, parent);
 
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C022");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1270"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1271"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1250"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1251"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "782"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "380"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "799"), 0, 1);
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C002");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "704"), 0, 1);
 		EDI_StoreComplexNode(s, parent);
 
 		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C003");
@@ -335,6 +326,14 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1328"), 0, 1);
 		EDI_StoreComplexNode(s, parent);
 
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C005");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
 		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C006");
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1361"), 1, 1);
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1361"), 0, 1);
@@ -343,12 +342,43 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1361"), 0, 1);
 		EDI_StoreComplexNode(s, parent);
 
-		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C005");
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 1, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
-		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1369"), 0, 1);
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C022");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1270"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1271"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1250"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1251"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "782"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "380"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "799"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C023");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1331"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1332"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1325"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C024");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1362"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1362"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1362"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "156"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "26"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C035");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1222"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "559"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1073"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
+		parent = EDI_CreateComplexType(s, EDITYPE_COMPOSITE, "C040");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "128"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "128"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "128"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 0, 1);
 		EDI_StoreComplexNode(s, parent);
 
 		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ST");
@@ -1057,6 +1087,19 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "554"), 0, 1);
 		EDI_StoreComplexNode(s, parent);
 
+		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "LQ");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1270"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1271"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
+		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "FRM");
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "350"), 1, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "1073"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "127"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "373"), 0, 1);
+		EDI_AppendType(s, parent, EDI_GetElementByID(s, "332"), 0, 1);
+		EDI_StoreComplexNode(s, parent);
+
 		parent = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "SE");
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "96"), 1, 1);
 		EDI_AppendType(s, parent, EDI_GetElementByID(s, "329"), 1, 1);
@@ -1066,177 +1109,217 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(s, loop1, EDI_GetComplexNodeByID(s, "ST"), 1, 1);
 		EDI_AppendType(s, loop1, EDI_GetComplexNodeByID(s, "BHT"), 1, 1);
 		EDI_AppendType(s, loop1, EDI_GetComplexNodeByID(s, "REF"), 0, 3);
-		EDI_SchemaNode loop410 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop410");
-		EDI_AppendType(s, loop410, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
-		EDI_AppendType(s, loop410, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
-		EDI_AppendType(s, loop410, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
-		EDI_AppendType(s, loop410, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
-		EDI_AppendType(s, loop410, EDI_GetComplexNodeByID(s, "REF"), 0, 2);
-		EDI_AppendType(s, loop410, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
-		EDI_StoreComplexNode(s, loop410);
-		EDI_AppendType(s, loop1, loop410, 0, 10);
-		EDI_SchemaNode loop1010 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop1010");
-		EDI_AppendType(s, loop1010, EDI_GetComplexNodeByID(s, "HL"), 1, 1);
-		EDI_AppendType(s, loop1010, EDI_GetComplexNodeByID(s, "PRV"), 0, 1);
-		EDI_AppendType(s, loop1010, EDI_GetComplexNodeByID(s, "SBR"), 0, 1);
-		EDI_AppendType(s, loop1010, EDI_GetComplexNodeByID(s, "PAT"), 0, 1);
-		EDI_AppendType(s, loop1010, EDI_GetComplexNodeByID(s, "DTP"), 0, 5);
-		EDI_AppendType(s, loop1010, EDI_GetComplexNodeByID(s, "CUR"), 0, 1);
-		EDI_SchemaNode loop1610 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop1610");
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "DMG"), 0, 1);
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "REF"), 0, 20);
-		EDI_AppendType(s, loop1610, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
-		EDI_StoreComplexNode(s, loop1610);
-		EDI_AppendType(s, loop1010, loop1610, 0, 10);
+		EDI_SchemaNode loop1000 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop1000");
+		EDI_AppendType(s, loop1000, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
+		EDI_AppendType(s, loop1000, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
+		EDI_AppendType(s, loop1000, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
+		EDI_AppendType(s, loop1000, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
+		EDI_AppendType(s, loop1000, EDI_GetComplexNodeByID(s, "REF"), 0, 2);
+		EDI_AppendType(s, loop1000, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
+		EDI_StoreComplexNode(s, loop1000);
+		EDI_AppendType(s, loop1, loop1000, 0, 10);
+		EDI_SchemaNode loop2000 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2000");
+		EDI_AppendType(s, loop2000, EDI_GetComplexNodeByID(s, "HL"), 1, 1);
+		EDI_AppendType(s, loop2000, EDI_GetComplexNodeByID(s, "PRV"), 0, 1);
+		EDI_AppendType(s, loop2000, EDI_GetComplexNodeByID(s, "SBR"), 0, 1);
+		EDI_AppendType(s, loop2000, EDI_GetComplexNodeByID(s, "PAT"), 0, 1);
+		EDI_AppendType(s, loop2000, EDI_GetComplexNodeByID(s, "DTP"), 0, 5);
+		EDI_AppendType(s, loop2000, EDI_GetComplexNodeByID(s, "CUR"), 0, 1);
+		EDI_SchemaNode loop2010 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2010");
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "DMG"), 0, 1);
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "REF"), 0, 20);
+		EDI_AppendType(s, loop2010, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
+		EDI_StoreComplexNode(s, loop2010);
+		EDI_AppendType(s, loop2000, loop2010, 0, 10);
+		EDI_SchemaNode loop2300 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2300");
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CLM"), 1, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "DTP"), 0, 150);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CL1"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "DN1"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "DN2"), 0, 35);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "PWK"), 0, 10);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CN1"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "DSB"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "UR"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "AMT"), 0, 40);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "REF"), 0, 30);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "K3"), 0, 10);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "NTE"), 0, 20);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR1"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR2"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR3"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR4"), 0, 3);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR5"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR6"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CR8"), 0, 1);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "CRC"), 0, 100);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "HI"), 0, 25);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "QTY"), 0, 10);
+		EDI_AppendType(s, loop2300, EDI_GetComplexNodeByID(s, "HCP"), 0, 1);
+		EDI_SchemaNode loop2305 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2305");
+		EDI_AppendType(s, loop2305, EDI_GetComplexNodeByID(s, "CR7"), 1, 1);
+		EDI_AppendType(s, loop2305, EDI_GetComplexNodeByID(s, "HSD"), 0, 12);
+		EDI_StoreComplexNode(s, loop2305);
+		EDI_AppendType(s, loop2300, loop2305, 0, 6);
 		EDI_SchemaNode loop2310 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2310");
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CLM"), 1, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "DTP"), 0, 150);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CL1"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "DN1"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "DN2"), 0, 35);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "PWK"), 0, 10);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CN1"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "DSB"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "UR"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "AMT"), 0, 40);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "REF"), 0, 30);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "K3"), 0, 10);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "NTE"), 0, 20);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR1"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR2"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR3"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR4"), 0, 3);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR5"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR6"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CR8"), 0, 1);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "CRC"), 0, 100);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "HI"), 0, 25);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "QTY"), 0, 10);
-		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "HCP"), 0, 1);
-		EDI_SchemaNode loop4710 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop4710");
-		EDI_AppendType(s, loop4710, EDI_GetComplexNodeByID(s, "CR7"), 1, 1);
-		EDI_AppendType(s, loop4710, EDI_GetComplexNodeByID(s, "HSD"), 0, 12);
-		EDI_StoreComplexNode(s, loop4710);
-		EDI_AppendType(s, loop2310, loop4710, 0, 6);
-		EDI_SchemaNode loop4910 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop4910");
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "PRV"), 0, 1);
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "REF"), 0, 20);
-		EDI_AppendType(s, loop4910, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
-		EDI_StoreComplexNode(s, loop4910);
-		EDI_AppendType(s, loop2310, loop4910, 0, 9);
-		EDI_SchemaNode loop5610 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop5610");
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "SBR"), 1, 1);
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "CAS"), 0, 99);
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "AMT"), 0, 15);
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "DMG"), 0, 1);
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "OI"), 0, 1);
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "MIA"), 0, 1);
-		EDI_AppendType(s, loop5610, EDI_GetComplexNodeByID(s, "MOA"), 0, 1);
-		EDI_SchemaNode loop6310 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop6310");
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "DTP"), 0, 9);
-		EDI_AppendType(s, loop6310, EDI_GetComplexNodeByID(s, "REF"), 0, 3);
-		EDI_StoreComplexNode(s, loop6310);
-		EDI_AppendType(s, loop5610, loop6310, 0, 10);
-		EDI_StoreComplexNode(s, loop5610);
-		EDI_AppendType(s, loop2310, loop5610, 0, 10);
-		EDI_SchemaNode loop7010 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop7010");
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "LX"), 1, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV1"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV2"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV3"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "TOO"), 0, 32);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV4"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV5"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV6"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "SV7"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "HI"), 0, 25);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "PWK"), 0, 10);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CR1"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CR2"), 0, 5);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CR3"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CR4"), 0, 3);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CR5"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CRC"), 0, 3);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "DTP"), 0, 15);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "QTY"), 0, 5);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "MEA"), 0, 20);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "CN1"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "REF"), 0, 30);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "AMT"), 0, 15);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "K3"), 0, 10);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "NTE"), 0, 10);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "PS1"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "IMM"), 0, 999999);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "HSD"), 0, 1);
-		EDI_AppendType(s, loop7010, EDI_GetComplexNodeByID(s, "HCP"), 0, 1);
-		EDI_SchemaNode loop9910 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop9910");
-		EDI_AppendType(s, loop9910, EDI_GetComplexNodeByID(s, "LIN"), 1, 1);
-		EDI_AppendType(s, loop9910, EDI_GetComplexNodeByID(s, "CTP"), 0, 1);
-		EDI_AppendType(s, loop9910, EDI_GetComplexNodeByID(s, "REF"), 0, 1);
-		EDI_StoreComplexNode(s, loop9910);
-		EDI_AppendType(s, loop7010, loop9910, 0, 999999);
-		EDI_SchemaNode loop10210 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop10210");
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "PRV"), 0, 1);
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "REF"), 0, 20);
-		EDI_AppendType(s, loop10210, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
-		EDI_StoreComplexNode(s, loop10210);
-		EDI_AppendType(s, loop7010, loop10210, 0, 10);
-		EDI_SchemaNode loop10910 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop10910");
-		EDI_AppendType(s, loop10910, EDI_GetComplexNodeByID(s, "SVD"), 1, 1);
-		EDI_AppendType(s, loop10910, EDI_GetComplexNodeByID(s, "CAS"), 0, 99);
-		EDI_AppendType(s, loop10910, EDI_GetComplexNodeByID(s, "DTP"), 0, 9);
-		EDI_StoreComplexNode(s, loop10910);
-		EDI_AppendType(s, loop7010, loop10910, 0, 999999);
-		EDI_StoreComplexNode(s, loop7010);
-		EDI_AppendType(s, loop2310, loop7010, 0, 999999);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "PRV"), 0, 1);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "REF"), 0, 20);
+		EDI_AppendType(s, loop2310, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
 		EDI_StoreComplexNode(s, loop2310);
-		EDI_AppendType(s, loop1010, loop2310, 0, 100);
-		EDI_StoreComplexNode(s, loop1010);
-		EDI_AppendType(s, loop1, loop1010, 1, 999999);
+		EDI_AppendType(s, loop2300, loop2310, 0, 9);
+		EDI_SchemaNode loop2320 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2320");
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "SBR"), 1, 1);
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "CAS"), 0, 99);
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "AMT"), 0, 15);
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "DMG"), 0, 1);
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "OI"), 0, 1);
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "MIA"), 0, 1);
+		EDI_AppendType(s, loop2320, EDI_GetComplexNodeByID(s, "MOA"), 0, 1);
+		EDI_SchemaNode loop2330 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2330");
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "DTP"), 0, 9);
+		EDI_AppendType(s, loop2330, EDI_GetComplexNodeByID(s, "REF"), 0, 3);
+		EDI_StoreComplexNode(s, loop2330);
+		EDI_AppendType(s, loop2320, loop2330, 0, 10);
+		EDI_StoreComplexNode(s, loop2320);
+		EDI_AppendType(s, loop2300, loop2320, 0, 10);
+		EDI_SchemaNode loop2400 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2400");
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "LX"), 1, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV1"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV2"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV3"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "TOO"), 0, 32);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV4"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV5"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV6"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "SV7"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "HI"), 0, 25);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "PWK"), 0, 10);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CR1"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CR2"), 0, 5);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CR3"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CR4"), 0, 3);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CR5"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CRC"), 0, 3);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "DTP"), 0, 15);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "QTY"), 0, 5);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "MEA"), 0, 20);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "CN1"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "REF"), 0, 30);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "AMT"), 0, 15);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "K3"), 0, 10);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "NTE"), 0, 10);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "PS1"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "IMM"), 0, 999999);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "HSD"), 0, 1);
+		EDI_AppendType(s, loop2400, EDI_GetComplexNodeByID(s, "HCP"), 0, 1);
+		EDI_SchemaNode loop2410 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2410");
+		EDI_AppendType(s, loop2410, EDI_GetComplexNodeByID(s, "LIN"), 1, 1);
+		EDI_AppendType(s, loop2410, EDI_GetComplexNodeByID(s, "CTP"), 0, 1);
+		EDI_AppendType(s, loop2410, EDI_GetComplexNodeByID(s, "REF"), 0, 1);
+		EDI_StoreComplexNode(s, loop2410);
+		EDI_AppendType(s, loop2400, loop2410, 0, 999999);
+		EDI_SchemaNode loop2420 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2420");
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "NM1"), 1, 1);
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "PRV"), 0, 1);
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "N2"), 0, 2);
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "N3"), 0, 2);
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "N4"), 0, 1);
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "REF"), 0, 20);
+		EDI_AppendType(s, loop2420, EDI_GetComplexNodeByID(s, "PER"), 0, 2);
+		EDI_StoreComplexNode(s, loop2420);
+		EDI_AppendType(s, loop2400, loop2420, 0, 10);
+
+
+		EDI_SchemaNode loop2430 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2430");
+		EDI_AppendType(s, loop2430, EDI_GetComplexNodeByID(s, "SVD"), 1, 1);
+		EDI_AppendType(s, loop2430, EDI_GetComplexNodeByID(s, "CAS"), 0, 99);
+		EDI_AppendType(s, loop2430, EDI_GetComplexNodeByID(s, "DTP"), 0, 9);
+		EDI_StoreComplexNode(s, loop2430);
+		EDI_AppendType(s, loop2400, loop2430, 0, 999999);
+		
+		EDI_SchemaNode loop2440 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2440");
+		EDI_AppendType(s, loop2440, EDI_GetComplexNodeByID(s, "LQ"), 1, 1);
+		EDI_AppendType(s, loop2440, EDI_GetComplexNodeByID(s, "FRM"), 0, 99);
+		EDI_StoreComplexNode(s, loop2440);
+		EDI_AppendType(s, loop2400, loop2440, 0, 999999);
+		
+		
+		EDI_StoreComplexNode(s, loop2400);
+		EDI_AppendType(s, loop2300, loop2400, 0, 999999);
+		EDI_StoreComplexNode(s, loop2300);
+		EDI_AppendType(s, loop2000, loop2300, 0, 100);
+		EDI_StoreComplexNode(s, loop2000);
+		EDI_AppendType(s, loop1, loop2000, 1, 999999);
 		EDI_AppendType(s, loop1, EDI_GetComplexNodeByID(s, "SE"), 1, 1);
 		
 		EDI_SetSegmentErrorHandler(s, &handleSegmentError);
 		EDI_SetElementErrorHandler(s, &handleElementError);
+		EDI_SetLoopStartHandler(s, &handleLoopStart);
+		EDI_SetLoopEndHandler(s, &handleLoopEnd);
 	}
 	return;
 }
 
-void handleSegmentStart(void *myData, const char *tag, int offset)
+void handleSegmentStart(void *myData, const char *tag)
 {
-	//fprintf(stderr, "Seg: %3s ->", tag);
+	//fprintf(stderr, "%sSeg: %3s ->", prefix, tag);
+	fprintf(stderr, "%s<%s>", prefix, tag);
 	if(strcmp("GS", tag) == 0){
 		group_start = 1;
 		counter = 0;
 	}
+	strcpy(curr_seg, tag);
+	curr_e = 0;
 	return;
 }
 
 void handleSegmentEnd(void *myData, const char *tag)
 {
-    //fprintf(stderr, " <- End: %s\n", tag);
+    fprintf(stderr, "</%s>\n", tag);
     return;
 }
 
-void handleElement(void *myData, const char *val, int position)
+void handleCompositeStart(void *myData)
+{
+	curr_e++;
+	curr_c = 0;
+	is_comp = 1;
+	fprintf(stderr, "<%s%2.2d>", curr_seg, curr_e);
+	//fprintf(stderr, "{");
+	return;
+}
+
+void handleCompositeEnd(void *myData)
+{
+    //fprintf(stderr, "}");
+    fprintf(stderr, "</%s%2.2d>", curr_seg, curr_e);
+    is_comp = 0;
+    return;
+}
+
+void handleElement(void *myData, const char *val)
 {
 	//fprintf(stderr, "[%s]", val);
+	if(is_comp){
+		curr_c++;
+		fprintf(stderr, "<%s%2.2d-%d>%s</%s%2.2d-%d>", curr_seg, curr_e, curr_c, val, curr_seg, curr_e, curr_c);
+	} else {
+		curr_e++;
+		fprintf(stderr, "<%s%2.2d>%s</%s%2.2d>", curr_seg, curr_e, val, curr_seg, curr_e);
+	}
 	if(group_start){
 		counter++;
 		if(counter == 1){
@@ -1251,12 +1334,6 @@ void handleElement(void *myData, const char *val, int position)
 		}
 	}
 	return;
-}
-
-void handleComponent(void *myData, const char *val, int elementPosition, int position)
-{
-    //fprintf(stderr, "{%s}", val);
-    return;
 }
 
 void handleJunk(void *myData, const char *val)
@@ -1303,8 +1380,9 @@ int main(int argc, char **argv)
 	
 	EDI_SetSegmentStartHandler(p, handleSegmentStart);
 	EDI_SetSegmentEndHandler(p, handleSegmentEnd);
+	EDI_SetCompositeStartHandler(p, handleCompositeStart);
+	EDI_SetCompositeEndHandler(p, handleCompositeEnd);
 	EDI_SetElementHandler(p, handleElement);
-	EDI_SetComponentHandler(p, handleComponent);
 	EDI_SetNonEDIDataHandler(p, handleJunk);
 	EDI_SetUserData(p, p);
         

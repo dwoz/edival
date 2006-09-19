@@ -1,6 +1,6 @@
 SUBDIRS = lib
 
-libedivaldocdir = ${prefix}/doc/edival-0.1.3
+libedivaldocdir = ${prefix}/doc/edival-0.1.4
 libedivaldoc_DATA = \
 	README          \
 	COPYING         \
@@ -10,15 +10,15 @@ libedivaldoc_DATA = \
 	NEWS            \
 	TODO
 
-libedivalexampledir = ${prefix}/doc/edival-0.1.3/examples
+libedivalexampledir = ${libedivaldocdir}/examples
 libedivalexample_DATA = examples/scan997.c examples/scan837.c examples/README
 
 EXTRA_DIST = $(libedivaldoc_DATA)
 
 # Copy all the spec files. Of cource, only one is actually used.
 dist-hook:
-	for specfile in *.spec; do           \
+	for specfile in *.spec; do          \
 		if test -f $$specfile; then      \
-			cp -p $$specfile $(distdir); \
+			cp -p $$specfile $(distdir);  \
 		fi                               \
 	done

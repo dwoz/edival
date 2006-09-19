@@ -40,6 +40,8 @@ struct EDI_SchemaStruct {
 	unsigned int                     prevElementIndex;
 	const EDI_Memory_Handling_Suite *memsuite;
 	EDI_Parser                       parser;
+	EDI_LoopStartHandler             loopStartHandler;
+	EDI_LoopEndHandler               loopEndHandler;
 	EDI_SegmentErrorHandler          segmentErrorHandler;
 	EDI_ElementErrorHandler          elementErrorHandler;
 };
@@ -65,7 +67,7 @@ EDI_ValidateSegmentPosition(EDI_Schema  ,
 enum EDI_ElementValidationError 
 EDI_ValidateElement(EDI_Schema  ,
                     int         ,   /* Element position      */
-                    int         ,   /* Composite position    */
+                    int        *,   /* Reference to Composite position int */
                     const char *,   /* String/element value  */
                     int         );  /* String/element length */
                     
@@ -74,7 +76,11 @@ EDI_ValidateElement(EDI_Schema  ,
  */
 enum EDI_ElementValidationError 
 EDI_ValidateSyntax(EDI_Schema,
-                   int       );  /* Element position; for composites ONLY */
+                   int       ,  /* Element position; for composites ONLY */
+                   int       ); /* Position of the last received element for 
+                                   the complex type being checked.  This finds
+                                   missing mandatory elements on truncated
+                                   segments and composites. */
 
 void EDI_DisposeNode(EDI_Schema, EDI_SchemaNode);
 #endif /* EDISchema_INCLUDED */

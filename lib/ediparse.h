@@ -35,12 +35,12 @@ struct EDI_ParserStruct {
 	char                            *dataBuffer;
 	char                            *dataBufEnd;
 	enum EDI_Error                   errorCode;
-	enum EDI_Parsing                 parsing;
-	EDI_ParsingStatus                parsingStatus;
+	enum EDI_ParsingState            state;
 	EDI_SegmentStartHandler          segmentStartHandler;
 	EDI_SegmentEndHandler            segmentEndHandler;
+	EDI_CompositeStartHandler        compositeStartHandler;
+	EDI_CompositeEndHandler          compositeEndHandler;
 	EDI_ElementHandler               elementHandler;
-	EDI_ComponentHandler             componentHandler;
 	EDI_RepeatHandler                repeatHandler;
 	EDI_NonEDIDataHandler            nonEDIDataHandler;
 	/* Internally used by the parsers */
