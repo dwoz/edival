@@ -1,3 +1,22 @@
+2006-09-19:
+	ediparse.[ch]:
+		-Add new handlers for start/end composite.
+		-Remove unused parsingStatus struct on parser.
+		-Enforce that all required handlers have been registered before parsing.
+	edival.h
+		-Bump micro version to 4 (release 0.1.4)
+		-Remove integer arguments from segment start handler and element handler.
+		-Remove component handler prototype.
+		-Add start/end composite handler prototypes.
+		-Add start/end loop handler prototypes.  These are set on the schema.
+	schema.[ch]
+		-Changes to accommodate loop and composite start/end handlers.
+	x12parser.c
+		-Changes to accommodate composite start/end handlers.
+	examples/scan837.c
+		-Added loop and composite start/end handlers.
+		-Changed output for the example to be XML (not well formed yet).
+
 2006-09-14:
 	common.[ch]:
 		-Add and convert several internally defined string functions to help with C99 compliance.

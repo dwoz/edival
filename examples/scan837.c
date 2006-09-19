@@ -1242,7 +1242,6 @@ void load_standard(EDI_Parser p)
 		EDI_StoreComplexNode(s, loop2420);
 		EDI_AppendType(s, loop2400, loop2420, 0, 10);
 
-
 		EDI_SchemaNode loop2430 = EDI_CreateComplexType(s, EDITYPE_LOOP, "Loop2430");
 		EDI_AppendType(s, loop2430, EDI_GetComplexNodeByID(s, "SVD"), 1, 1);
 		EDI_AppendType(s, loop2430, EDI_GetComplexNodeByID(s, "CAS"), 0, 99);
