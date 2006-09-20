@@ -35,7 +35,7 @@ libedival_la_SOURCES =			\
 
 libedival_la_LDFLAGS = \
 	$(all_libraries)    \
-	-version-info 0:0:0 \
+	-version-info 1:0:0 \
 	-no-undefined
 
 libedival_la_LIBADD = 

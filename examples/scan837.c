@@ -1326,7 +1326,6 @@ void handleElement(void *myData, const char *val)
 				load_standard((EDI_Parser)myData);
 			} else {
 				fprintf(stderr, "*** No transaction-level validation will be performed on this file.\n");
-				//exit(1);
 			}
 		} else {
 			group_start = 0;

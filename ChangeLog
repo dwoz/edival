@@ -1,3 +1,8 @@
+2006-09-20:
+	lib/Makefile.am:
+		-Due to API adds and deletes, the libtool 'current' version has been 
+		incremented by 1.
+
 2006-09-19:
 	ediparse.[ch]:
 		-Add new handlers for start/end composite.
