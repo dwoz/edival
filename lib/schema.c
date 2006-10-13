@@ -272,7 +272,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 				} else {
 					current  = schema->root->firstChild;
 					if(!string_eq(nodeID, current->node->nodeID)){
-						//Unexpected segment... must reset our position!
+						/* Unexpected segment... must reset our position! */
 						schema->depth = startDepth;
 						startNode->count = startCount;
 						if(EDI_GetComplexNodeByID(schema, nodeID)){
@@ -281,12 +281,12 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 							error = SEGERR_UNDEFINED;
 						}
 						mCount = 0;
-						break; //Wasn't found; cut our losses and go back.
+						break; /* Wasn't found; cut our losses and go back. */
 					} else {
 						clear = current;
 					}
 				}
-				//Reset the usage of child nodes to 0 since we are moving up a level
+				/* Reset the usage of child nodes to 0 since we are moving up a level */
 				while(clear){
 					clear->count = 0;
 					clear = clear->nextSibling;

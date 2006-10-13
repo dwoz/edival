@@ -25,7 +25,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <time.h>
 /******************************************************************************/
 typedef void* (*EDI_StateHandler)(void *parser);
@@ -34,13 +33,9 @@ typedef void* (*EDI_StateHandler)(void *parser);
 #define REALLOC(obj, p,s) (obj->memsuite->realloc_fcn((p),(s)))
 #define FREE(obj, p) (obj->memsuite->free_fcn((p)))
 /******************************************************************************/
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-size_t strnlen (const char *, size_t);
-#endif /* _GNU_SOURCE */
-
-char *EDI_strdup(const char *);
-char *EDI_strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
+size_t EDI_strnlen (const char *, size_t);
+char  *EDI_strdup(const char *);
+char  *EDI_strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
 inline int string_eq(const char*, const char*);
 
 #define EDI_GAP_SCAN(parser, pointer) \

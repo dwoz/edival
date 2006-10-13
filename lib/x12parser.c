@@ -18,13 +18,12 @@
 
 #include "x12parser.h"
 /******************************************************************************/
-#include <unistd.h>
-/******************************************************************************/
 #define X12_PARSER ((X12_Parser)parser->child)
 #define EDI_PARSER (parser)
 
 EDI_StateHandler X12_ProcessISA(EDI_Parser);
 EDI_StateHandler X12_ProcessMessage(EDI_Parser);
+EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser);
 EDI_StateHandler X12_ProcessIEA(EDI_Parser);
 static EDI_Schema loadStandards(EDI_Schema);
 void X12_ParserDestroy(EDI_Parser);
@@ -72,9 +71,15 @@ if(string){\
 	}\
 }
 /******************************************************************************/
-#define ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, component, value, length) \
+#define ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, component, value, length) \
 if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){\
-	EDI_ValidateElement(EDI_PARSER->schema, element, component, value, length);\
+	EDI_ValidateElement(  \
+		EDI_PARSER->schema,\
+		element           ,\
+		component         ,\
+		value             ,\
+		length             \
+	);                    \
 }
 /******************************************************************************/
 void handleX12SegmentError(void *myData, const char *tag, enum EDI_SegmentValidationError err)
@@ -230,7 +235,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        	switch(X12_PARSER->previous){
 	        		case COMPONENT:
 	        			component++;
-	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, &component, tok.token, tok.length);
+	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
 	        			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
 		  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 							EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
@@ -251,7 +256,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        			element++;
 	        		case REPEAT:
 	        			component = 0;
-	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, &component, tok.token, tok.length);
+	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
 	        			if(component == 1){
 	        				EDI_PARSER->compositeStartHandler(EDI_PARSER->userData);
 	        				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
@@ -274,7 +279,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 					component = 0;
 				}
 				component++;
-				ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, &component, tok.token, tok.length);
+				ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
      			if(component == 1){
      				EDI_PARSER->compositeStartHandler(EDI_PARSER->userData);
      			}
@@ -283,7 +288,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 			case SEGMENT:
 	        	if(X12_PARSER->previous == COMPONENT){
 	        		component++;
-        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, &component, tok.token, tok.length);
+        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
 	        		EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
 	  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 						EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
@@ -291,11 +296,11 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        		EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
 	        	} else {
 	        		if(X12_PARSER->previous == ELEMENT){
-	        			// Only increment the element count if this isn't a repeated element.
+	        			/* Only increment the element count if this isn't a repeated element. */
 	        			element++;
 	        		}
 	        		component = 0;
-        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, tag, element, &component, tok.token, tok.length);
+        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
 	     			if(component == 1){
 	     				EDI_PARSER->compositeStartHandler(EDI_PARSER->userData);
 	     				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
@@ -330,9 +335,22 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 				}
 				break;
 			default: ;
-	    }
-	    X12_PARSER->previous = tok.type;
-	    X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
+		}
+		if(EDI_PARSER->binaryElementSize){
+			if(EDI_PARSER->binaryElementSize <= EDI_PARSER->maxBinaryBufferSize){
+				EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
+			}
+	    	if(X12_PARSER->savedTag){
+	    		FREE(EDI_PARSER, X12_PARSER->savedTag);
+	    	}
+	    	X12_PARSER->savedTag = EDI_strdup(tag);
+			X12_PARSER->savedElementPosition = element;
+			X12_PARSER->savedComponentPosition = component;
+	    	return (void *)X12_ProcessBinaryElement;
+		} else {
+			X12_PARSER->previous = tok.type;
+			X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
+		}
 	}
 	if(tag){
     	if(X12_PARSER->savedTag){
@@ -343,6 +361,123 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 		X12_PARSER->savedComponentPosition = component;
 	}
 	EDI_SetResumeState(EDI_PARSER->machine, (void *)X12_ProcessMessage);
+	EDI_PARSER->errorCode = EDI_ERROR_BUFFER_END;
+	return EDI_PARSER->error;
+}
+/******************************************************************************/
+EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
+{
+	char *bufIter           = EDI_PARSER->bufReadPtr;
+	long long int size      = EDI_PARSER->binaryElementSize;
+	long long int finished  = EDI_PARSER->bytesHandled;
+	enum X12_Delimiter type = UNKNOWN;
+	
+	/*  
+	 *  If the current buffer does not hold the entire binary element, we
+	 *  will fall back to the caller who has the responsibilty to load more
+	 *  data to the buffer.  This will repeat until the entire binary element
+	 *  is present in memory. 
+	 */
+	if(size > EDI_PARSER->maxBinaryBufferSize){
+		/* Write to file; */
+	} else {
+		if((EDI_PARSER->bufEndPtr - bufIter) > (size - finished)){
+			memcpy(
+				&(EDI_PARSER->binBuffer[finished]), 
+				bufIter, 
+				(size - finished)
+			);
+			finished = size;
+			EDI_PARSER->bufReadPtr += size;
+		} else {
+			memcpy(
+				&(EDI_PARSER->binBuffer[finished]), 
+				(void *)bufIter,
+				(EDI_PARSER->bufEndPtr - bufIter)
+			);
+			finished += (EDI_PARSER->bufEndPtr - bufIter);
+			EDI_PARSER->bufReadPtr = EDI_PARSER->bufEndPtr;
+		}
+		if(finished == size){
+			if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[REPEAT])){
+				type = REPEAT;
+			} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[ELEMENT])){
+				type = ELEMENT;
+			} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[COMPONENT])){
+				type = COMPONENT;
+			} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[SEGMENT])){
+				type = SEGMENT;
+			}
+			int element = X12_PARSER->savedElementPosition;
+			int component = X12_PARSER->savedComponentPosition;			
+			switch(type){
+				case ELEMENT:
+				case COMPONENT:
+		        	switch(X12_PARSER->previous){
+		        		case COMPONENT:
+		        			component++;
+		        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
+		        			EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+			  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
+								EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
+			  				}
+			  				EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
+		        			break;
+		        		case ELEMENT:
+		        			element++;
+		        			component = 0;
+		        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
+		        			if(component == 1){
+								fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+								exit(70);
+		        			} else {
+		        				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+		        			}
+		        			break;
+						default: 
+							fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+							exit(70);
+		        	}
+		        	break;
+				case SEGMENT:
+		        	if(X12_PARSER->previous == COMPONENT){
+		        		component++;
+	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
+		        		EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+		  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
+							EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
+		  				}
+		        		EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
+		        	} else {
+		        		if(X12_PARSER->previous == ELEMENT){
+		        			/* Only increment the element count if this isn't a repeated element. */
+		        			element++;
+		        		}
+		        		component = 0;
+	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
+		     			if(component == 1){
+							fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+							exit(70);
+		     			} else {
+		     				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+		     			}
+		        	}
+	  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
+						EDI_ValidateSyntax(EDI_PARSER->schema, 0, element);
+	  				}
+					EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, X12_PARSER->savedTag);
+					break;
+				default:
+					fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+					exit(70);
+			}
+			EDI_PARSER->bufReadPtr++;
+			X12_PARSER->previous = type;
+			EDI_PARSER->binaryElementSize = 0;
+			return (void *)X12_ProcessMessage;
+		}
+	}
+	EDI_SetResumeState(EDI_PARSER->machine, (void *)X12_ProcessBinaryElement);
 	EDI_PARSER->errorCode = EDI_ERROR_BUFFER_END;
 	return EDI_PARSER->error;
 }
@@ -425,6 +560,7 @@ X12_Parser X12_ParserCreate(EDI_Parser parent)
 		parent->freeChild           = (void *)X12_ParserDestroy;
 		EDI_AddState(parent->machine, (void *)X12_ProcessISA, 0);
 		EDI_AddState(parent->machine, (void *)X12_ProcessMessage, 0);
+		EDI_AddState(parent->machine, (void *)X12_ProcessBinaryElement, 0);
 		EDI_AddState(parent->machine, (void *)X12_ProcessIEA, 0);
 		new->parent = parent;
 		new->x12Schema->parser = parent;
@@ -572,6 +708,7 @@ void X12_ParserDestroy(EDI_Parser parser)
 	EDI_PARSER->process = NULL;
 	EDI_RemoveState(EDI_PARSER->machine, (void *)X12_ProcessISA, 0);
 	EDI_RemoveState(EDI_PARSER->machine, (void *)X12_ProcessMessage, 0);
+	EDI_RemoveState(EDI_PARSER->machine, (void *)X12_ProcessBinaryElement, 0);
 	EDI_RemoveState(EDI_PARSER->machine, (void *)X12_ProcessIEA, 0);
 	if(X12_PARSER->savedTag){
 		free(X12_PARSER->savedTag);

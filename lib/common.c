@@ -18,7 +18,7 @@
 
 #include "common.h"
 /******************************************************************************/
-size_t strnlen (const char *string, size_t maxlen)
+size_t EDI_strnlen (const char *string, size_t maxlen)
 {
   const char *end = memchr(string, '\0', maxlen);
   return end ? (size_t) (end - string) : maxlen;
@@ -26,7 +26,7 @@ size_t strnlen (const char *string, size_t maxlen)
 /******************************************************************************/
 char *EDI_strndup(const char *s, size_t n, const EDI_Memory_Handling_Suite *memsuite)
 {
-    size_t len = strnlen(s, n);
+    size_t len = EDI_strnlen(s, n);
     char *new = memsuite->malloc_fcn(len + 1);
 
     if(new == NULL){

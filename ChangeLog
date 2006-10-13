@@ -1,3 +1,19 @@
+2006-10-04:
+	ediparse.h:
+		-Add fields for binary element parsing.
+	edival.h:
+		-Add callback setup and function pointer definitions for binary handlers.
+		-Re-enable binary element types and add new type, binary element size which
+		must be used on the element previous to the binary element to qualify its
+		size.
+		-N.B. - Binary elements can ONLY be used when parsing with a schema!!!
+		-Bump micro version to 5 (release 0.1.5)
+	simpletype.c:
+		-Add code to validate elements of type EDI_DATA_BINARY_SIZE and saves the
+		size information to the schema's current parser.
+	x12parser.c:
+		-Added new function for parsing binary elements.
+
 2006-09-20:
 	lib/Makefile.am:
 		-Due to API adds and deletes, the libtool 'current' version has been 

@@ -20,7 +20,7 @@
 /******************************************************************************/
 EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
                                      enum EDI_PrimitiveDataType  type  ,
-                                     const char                 *id    , 
+                                     const char                 *id    ,
                                      unsigned int                minlen,
                                      unsigned int                maxlen)
 {
@@ -211,6 +211,23 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      sche
 				    (time[2] < 0) || (time[2] > 59) || (time[3] < 0)){
 					return VAL_TIME_ERROR;
 				}				
+				break;
+			case EDI_DATA_BINARY_SIZE: /* Same code as integer, only save to the parser. */
+				if(value[0] == '+' || value[0] == '-'){
+					length--;
+				}
+				if(length > element->max){
+					return VAL_RANGE_HIGH;
+				} else if(length < element->min){
+					return VAL_RANGE_LOW;
+				}
+				llvalue = strtoll(value, &invalid, 10);
+				if(value[0] == '\0' || *invalid != '\0'){
+					return VAL_CHAR_ERROR;
+				}
+				schema->parser->binaryElementSize = llvalue;
+				break;
+			case EDI_DATA_BINARY:
 				break;
 			default:
 				return VAL_UNKNOWN_ELEMENT;

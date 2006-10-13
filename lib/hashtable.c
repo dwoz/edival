@@ -6,10 +6,11 @@
 #include <math.h>
 
 /*
- Credit for primes table: Aaron Krowne
- http://br.endernet.org/~akrowne/
- http://planetmath.org/encyclopedia/GoodHashTablePrimes.html
-*/
+ * Credit for primes table: Aaron Krowne
+ * http://br.endernet.org/~akrowne/
+ * http://planetmath.org/encyclopedia/GoodHashTablePrimes.html
+ *
+ */
 static const unsigned int primes[] = {
 	53,        97,        193,       389,
 	769,       1543,      3079,      6151,

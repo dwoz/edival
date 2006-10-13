@@ -27,7 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 4
+#define EDI_MICRO_VERSION 5
 
 /******************************************************************************/
 /********** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ************/
@@ -142,6 +142,20 @@ void EDI_SetElementHandler(EDI_Parser, EDI_ElementHandler);
 
 
 /*******************************************************************************
+    This is called when a binary element is found in the data stream.  This can
+    only be used if a schema has been defined that includes both elements of 
+    type EDI_DATA_BINARY_SIZE and EDI_DATA_BINARY.  The size element MUST come
+    directly before the binary element at the same level in the segment or
+    composite.  The binary element's size must not be in an element while the
+    binary element itself is in a composite structure.  No repeating binary
+    elements are allowed by this library.
+*******************************************************************************/
+typedef void (*EDI_BinaryBufferHandler)(void *, const char *, long long);
+
+void EDI_SetBinaryElementHandler(EDI_Parser, EDI_BinaryBufferHandler);
+
+
+/*******************************************************************************
     This is called when an element is repeated with the repetition character to
     indicate that the following element is a repetition of the previous.  No
     parsed data is passed with this function.
@@ -153,9 +167,8 @@ void EDI_SetRepeatHandler(EDI_Parser, EDI_RepeatHandler);
 
 /*******************************************************************************
     The Non EDI Handler will be called whenever the parser encounters data
-    in the stream that is not valid.  E.g., "\r\n" in addition to segment
-    terminators, junk data before start of interchange or after end of
-    interchange, etc.
+    in the stream that is not valid.  E.g., non-whitespace between segments, 
+    junk data before start of interchange or after end of interchange, etc.
 *******************************************************************************/
 typedef void (*EDI_NonEDIDataHandler)(void *, const char *);
 
@@ -220,8 +233,10 @@ enum EDI_PrimitiveDataType {
     EDI_DATA_INTEGER     = 2,
     EDI_DATA_DECIMAL     = 3,
     EDI_DATA_DATE        = 4, /* CCYYMMDD */
-    EDI_DATA_TIME        = 5  /* HHMMSSdd */
-    //EDI_DATA_BINARY      = 6  /* Binary data; not yet supported */
+    EDI_DATA_TIME        = 5, /* HHMMSSdd */
+    EDI_DATA_BINARY      = 6, /* Binary data */
+    EDI_DATA_BINARY_SIZE = 7  /* ONLY for a numeric element that gives the */
+                              /* size of a binary element following next.  */
 };
 
 /*******************************************************************************

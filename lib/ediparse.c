@@ -87,7 +87,7 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 /******************************************************************************/
 EDI_StateHandler error(EDI_Parser parser)
 {
-    //fprintf(stderr, "Error! %d\n", EDI_GetErrorCode(parser));
+    /* fprintf(stderr, "Error! %d\n", EDI_GetErrorCode(parser)); */
 	return NULL;
 }
 /******************************************************************************/
@@ -154,6 +154,10 @@ static void parserInit(EDI_Parser parser)
 	parser->compositeStartHandler = NULL;
 	parser->compositeEndHandler   = NULL;
 	parser->elementHandler        = NULL;
+	parser->binBufferHandler      = NULL;
+	parser->maxBinaryBufferSize   = 0;
+	parser->bytesHandled          = 0;
+	parser->binBuffer             = NULL;
 	parser->nonEDIDataHandler     = NULL;
 	parser->seekHeader            = (void *)seekHeader;
 	parser->error                 = (void *)error;	
@@ -164,7 +168,7 @@ static void parserInit(EDI_Parser parser)
 	parser->docType               = EDI_UNKNOWN_DOC;
 	parser->schema                = NULL;
 	parser->validate              = EDI_FALSE;
-    return;
+	return;
 }
 /******************************************************************************/
 void EDI_SetUserData(EDI_Parser parser, void *p)
@@ -195,6 +199,12 @@ void EDI_SetCompositeEndHandler(EDI_Parser parser, EDI_CompositeEndHandler h)
 void EDI_SetElementHandler(EDI_Parser parser, EDI_ElementHandler h)
 {
     parser->elementHandler = h;
+}
+/******************************************************************************/
+void EDI_SetBinaryElementHandlers(EDI_Parser              parser, 
+                                  EDI_BinaryBufferHandler bbh   )
+{
+    parser->binBufferHandler    = bbh;
 }
 /******************************************************************************/
 void EDI_SetRepeatHandler(EDI_Parser parser, EDI_RepeatHandler h)
@@ -248,12 +258,6 @@ void *EDI_GetBuffer(EDI_Parser parser, int len)
         } else {
             char *newBuf;
             int size = parser->dataBufEnd - parser->bufReadPtr;
-            //if(size == 0){
-            //    size = INIT_DATA_BUF_SIZE;
-            //}
-            //do {
-            //    size *= 2;
-            //} while(size < neededSize);
             size += neededSize;
             newBuf = (char *)MALLOC(parser, size);
             if(!newBuf){
