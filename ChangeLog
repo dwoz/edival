@@ -1,3 +1,21 @@
+2006-10-16:
+	-General:
+		-Code cleanups, removed multiple 'cobwebs' :-).  
+		-WARNING: Several major API changes have taken place.
+		-Bump micro version to 6 (release 0.1.6)
+		-Since this library is still young and the API is fairly unstable and likely
+		to change, I won't be updating the libtool version in the lib/Makefile.  This
+		will probably change once the API becomes more stable. 
+	-ediparse.c:
+		-FIX function name of function used to register binary elements.
+		It now matches the API and should now work for the first time.
+	-complextype.[ch]/edival.h/simpletype.[ch]:
+		-Major API changes.  Multiple functions can now be called without 
+		relying on passing a schema pointer as an argument.  See the edival.h file for new calls.
+		Calls made internally throughout the library were adjusted to account for no longer
+		needing the schema for these calls.
+		-Changed return of EDI_AppendType to be the parent rather than the child.
+
 2006-10-04:
 	ediparse.h:
 		-Add fields for binary element parsing.

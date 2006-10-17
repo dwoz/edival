@@ -42,7 +42,7 @@ struct EDI_ParserStruct {
 	EDI_CompositeEndHandler          compositeEndHandler;
 	EDI_ElementHandler               elementHandler;
 	EDI_BinaryBufferHandler          binBufferHandler;
-	long long                        maxBinaryBufferSize;
+	long long                        binaryElementSize;
 	long long                        bytesHandled;
 	char                            *binBuffer;
 	EDI_RepeatHandler                repeatHandler;
@@ -57,7 +57,6 @@ struct EDI_ParserStruct {
 	enum EDI_DocumentType            docType;
 	void                            *schema;
 	EDI_Bool                         validate;
-	long long                        binaryElementSize;
 };
 
 #endif /* EDIParse_INCLUDED */

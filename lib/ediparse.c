@@ -85,9 +85,9 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 	return parser->error;
 }
 /******************************************************************************/
-EDI_StateHandler error(EDI_Parser parser)
+EDI_StateHandler handleError(EDI_Parser parser)
 {
-    /* fprintf(stderr, "Error! %d\n", EDI_GetErrorCode(parser)); */
+    //fprintf(stderr, "Error! %d\n", EDI_GetErrorCode(parser));
 	return NULL;
 }
 /******************************************************************************/
@@ -132,7 +132,7 @@ static EDI_Parser parserCreate(EDI_Memory_Handling_Suite *memsuite)
 	if(!parser){
 	   return NULL;
 	}
-	parser->dataBuffer = MALLOC(parser, INIT_DATA_BUF_SIZE * sizeof(char *));
+	parser->dataBuffer = MALLOC(parser, INIT_DATA_BUF_SIZE * sizeof(char));
 	if(!parser->dataBuffer){
 	   FREE(parser, parser);
 	   return NULL;
@@ -155,12 +155,12 @@ static void parserInit(EDI_Parser parser)
 	parser->compositeEndHandler   = NULL;
 	parser->elementHandler        = NULL;
 	parser->binBufferHandler      = NULL;
-	parser->maxBinaryBufferSize   = 0;
+	parser->binaryElementSize     = 0;
 	parser->bytesHandled          = 0;
 	parser->binBuffer             = NULL;
 	parser->nonEDIDataHandler     = NULL;
 	parser->seekHeader            = (void *)seekHeader;
-	parser->error                 = (void *)error;	
+	parser->error                 = (void *)handleError;
 	parser->process               = NULL;
 	parser->machine               = NULL;
 	parser->child                 = NULL;
@@ -201,8 +201,8 @@ void EDI_SetElementHandler(EDI_Parser parser, EDI_ElementHandler h)
     parser->elementHandler = h;
 }
 /******************************************************************************/
-void EDI_SetBinaryElementHandlers(EDI_Parser              parser, 
-                                  EDI_BinaryBufferHandler bbh   )
+void EDI_SetBinaryElementHandler(EDI_Parser              parser, 
+                                 EDI_BinaryBufferHandler bbh   )
 {
     parser->binBufferHandler    = bbh;
 }
@@ -337,27 +337,30 @@ enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
 /******************************************************************************/
 enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len)
 {
-	enum EDI_Error error;
+	enum EDI_Error error = EDI_ERROR_NONE;
 
 	if(!parser->segmentStartHandler){
 		fprintf(stderr, "FATAL (edival): No callback registered event: Segment Start\n");
-		exit(70);
+		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->segmentEndHandler){
 		fprintf(stderr, "FATAL (edival): No callback registered event: Segment End\n");
-		exit(70);
+		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->compositeStartHandler){
 		fprintf(stderr, "FATAL (edival): No callback registered event: Composite Start\n");
-		exit(70);
+		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->compositeEndHandler){
 		fprintf(stderr, "FATAL (edival): No callback registered event: Composite End\n");
-		exit(70);
+		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->elementHandler){
 		fprintf(stderr, "FATAL (edival): No callback registered event: Element\n");
-		exit(70);
+		error = parser->errorCode = EDI_ERROR_ABORTED;
+	}
+	if(error){
+		return EDI_STATUS_ERROR;
 	}
 	switch (parser->state) {
 		case EDI_SUSPENDED:
@@ -444,6 +447,9 @@ void EDI_ParserFree(EDI_Parser parser)
 	if(parser->child){
 		parser->freeChild(parser);
 	}
+	if(parser->binBuffer){
+		FREE(parser, parser->binBuffer);
+	}		
 	FREE(parser, parser->dataBuffer);
 	FREE(parser, parser->machine);
 	free_fcn = parser->memsuite->free_fcn;

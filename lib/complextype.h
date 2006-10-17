@@ -51,5 +51,5 @@ struct EDI_SyntaxNoteStruct {
 	EDI_SyntaxNote       next;
 };
 /******************************************************************************/
-void EDI_DisposeComplexType(EDI_Schema, EDI_ComplexType);
+void EDI_DisposeComplexType(EDI_ComplexType);
 #endif /* EDIComplexType_INCLUDED */

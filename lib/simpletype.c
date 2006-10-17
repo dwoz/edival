@@ -33,6 +33,7 @@ EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
 	node->header.type = EDITYPE_ELEMENT;
 	node->header.nodeID = EDI_strndup(id, strlen(id), schema->memsuite);
 	node->header.refCount = 0;
+	node->header.schema = schema;
 	node->type = type;
 	if(type == EDI_DATA_DATE){
 		node->min = (minlen < 6) ? 6 : minlen;
@@ -51,8 +52,8 @@ EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
 	return NULL;
 }
 /******************************************************************************/
-EDI_SchemaNode EDI_GetElementByID(EDI_Schema      schema,
-                                  const char     *nodeID)
+EDI_SchemaNode EDI_GetElementByID(EDI_Schema  schema,
+                                  const char *nodeID)
 {
 	EDI_SchemaNode    node  = NULL;
 	struct hashtable *table = NULL;
@@ -66,17 +67,16 @@ EDI_SchemaNode EDI_GetElementByID(EDI_Schema      schema,
 }
 
 /******************************************************************************/
-enum EDI_ElementValidationError EDI_AddElementValue(EDI_Schema      schema,
-                                                    const char     *nodeID,
-                                                    const char     *value )
+enum EDI_ElementValidationError EDI_AddElementValue(EDI_SchemaNode  node ,
+                                                    const char     *value)
 {
-	struct hashtable               *table   = NULL;
-	EDI_SimpleType                 *element = NULL;
+	EDI_SimpleType *element = (EDI_SimpleType *)node;
 	enum EDI_ElementValidationError error   = VAL_UNKNOWN_ELEMENT;
 	
-	table = schema->elements;
-	if((element = (EDI_SimpleType *)hashtable_search(table, (void *)nodeID))){
-		error = EDI_CheckElementConstraints(schema, element, value, strlen(value));
+	if(node->type != EDITYPE_ELEMENT){
+		error = VAL_UNKNOWN_ELEMENT;
+	} else if(element){
+		error = EDI_CheckElementConstraints(element, value, strlen(value));
 		if(!error || error == VAL_CODE_ERROR){
 			if(!element->values){
 				element->values = create_hashtable(20);
@@ -89,8 +89,7 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_Schema      schema,
 	return error;
 }
 /******************************************************************************/
-enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      schema ,
-                                                            EDI_SimpleType *element,
+enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *element,
                                                             const char     *value  ,
                                                             int             length )
 {
@@ -225,7 +224,8 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      sche
 				if(value[0] == '\0' || *invalid != '\0'){
 					return VAL_CHAR_ERROR;
 				}
-				schema->parser->binaryElementSize = llvalue;
+				/*schema->parser->binaryElementSize = llvalue;*/
+				element->header.schema->parser->binaryElementSize = llvalue;
 				break;
 			case EDI_DATA_BINARY:
 				break;
@@ -239,22 +239,24 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_Schema      sche
 	}
 }
 /******************************************************************************/
-void EDI_DisposeSimpleType(EDI_Schema     schema,
-                           EDI_SchemaNode node  )
+void EDI_DisposeSimpleType(EDI_SchemaNode node)
 {
 	EDI_SimpleType   *element = NULL;
 	struct hashtable *table   = NULL;
 
 	if(node && node->refCount == 0){
-		table = schema->elements;
+		/*table = schema->elements;*/
+		table = node->schema->elements;
 		if(table){
 			element = (EDI_SimpleType*)hashtable_search(table, node->nodeID);
 			if(element && element->values){
 				hashtable_destroy(element->values, EDI_TRUE);
 			}
 		}
-		FREE(schema, node->nodeID);
-		FREE(schema, node);
+		/*FREE(schema, node->nodeID);
+		FREE(schema, node);*/
+		FREE(node->schema, node->nodeID);
+		FREE(node->schema, node);
 	}
 	return;
 }

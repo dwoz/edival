@@ -51,11 +51,10 @@ struct EDI_SimpleTypeStruct {
 	struct hashtable           *values;
 };
 /******************************************************************************/
-void EDI_DisposeSimpleType(EDI_Schema, EDI_SchemaNode);
+void EDI_DisposeSimpleType(EDI_SchemaNode);
 
 enum EDI_ElementValidationError 
-EDI_CheckElementConstraints(EDI_Schema      ,
-                            EDI_SimpleType *, /* The element */
+EDI_CheckElementConstraints(EDI_SimpleType *, /* The element */
                             const char     *, /* String/element value  */
                             int            ); /* String/element length */
 

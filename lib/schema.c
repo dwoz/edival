@@ -377,7 +377,6 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema  schema        ,
 			element->count++;
 			if(element->count <= element->max_occurs){
 				error = EDI_CheckElementConstraints(
-					schema, 
 					(EDI_SimpleType *)(element->node), 
 					value, 
 					length
@@ -570,7 +569,9 @@ void EDI_SchemaFree(EDI_Schema schema)
 		schema->parser->validate = EDI_FALSE;
 		FREE(schema, schema->identifier);
 	}
-	EDI_DisposeNode(schema, (EDI_SchemaNode)schema->root);
+	if(schema->root){
+		EDI_DisposeNode((EDI_SchemaNode)schema->root);
+	}
 	hashtable_destroy(schema->complexNodes, 0);
 	hashtable_destroy(schema->elements, 0);
 	free_fcn = schema->memsuite->free_fcn;
@@ -580,12 +581,11 @@ void EDI_SchemaFree(EDI_Schema schema)
 	return;
 }
 /******************************************************************************/
-void EDI_DisposeNode(EDI_Schema     schema  ,
-                     EDI_SchemaNode node    )
+void EDI_DisposeNode(EDI_SchemaNode node)
 {
 	if(node->type == EDITYPE_ELEMENT){
-		EDI_DisposeSimpleType(schema, node);
+		EDI_DisposeSimpleType(node);
 	} else {
-		EDI_DisposeComplexType(schema, (EDI_ComplexType)node);
+		EDI_DisposeComplexType((EDI_ComplexType)node);
 	}
 }

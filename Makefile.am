@@ -1,6 +1,6 @@
 SUBDIRS = lib
 
-libedivaldocdir = ${prefix}/doc/edival-0.1.5
+libedivaldocdir = ${prefix}/doc/edival-0.1.6
 libedivaldoc_DATA = \
 	README          \
 	COPYING         \

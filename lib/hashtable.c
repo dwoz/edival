@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
+#include <stdio.h>
 /*
  * Credit for primes table: Aaron Krowne
  * http://br.endernet.org/~akrowne/
@@ -228,6 +228,7 @@ hashtable_search(struct hashtable *h, void *k)
     while(e){
         /* Check hash value to short circuit heavier comparison */
         if ((hashvalue == e->h) && (string_eq(k, e->k))) return e->v;
+        fprintf(stderr, "chaining\n");
         e = e->next;
     }
     return NULL;

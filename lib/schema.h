@@ -50,6 +50,7 @@ struct EDI_SchemaNodeStruct {
     char              *nodeID;
     enum EDI_NodeType  type;
     unsigned int       refCount;
+    EDI_Schema         schema;
 };
 /******************************************************************************/
 
@@ -82,5 +83,5 @@ EDI_ValidateSyntax(EDI_Schema,
                                    missing mandatory elements on truncated
                                    segments and composites. */
 
-void EDI_DisposeNode(EDI_Schema, EDI_SchemaNode);
+void EDI_DisposeNode(EDI_SchemaNode);
 #endif /* EDISchema_INCLUDED */

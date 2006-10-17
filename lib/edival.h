@@ -27,7 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 5
+#define EDI_MICRO_VERSION 6
 
 /******************************************************************************/
 /********** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ************/
@@ -360,9 +360,8 @@ EDI_SchemaNode EDI_GetElementByID(EDI_Schema  ,
  * only applies to elements of type EDI_DATA_STRING that represent ID values.
  ******************************************************************************/
 enum EDI_ElementValidationError 
-EDI_AddElementValue(EDI_Schema      ,
-                    const char     *,  /* Element type identifier */
-                    const char     *); /* Explicit value   */
+EDI_AddElementValue(EDI_SchemaNode,  /* The node       */
+                    const char   *); /* Explicit value */
 
 /*******************************************************************************
  * Returns a new composite/segment/loop/message type Schema node (complex types)
@@ -373,7 +372,6 @@ EDI_SchemaNode
 EDI_CreateComplexType(EDI_Schema        ,
                       enum EDI_NodeType ,  /* Node type               */
                       const char       *); /* Complex type identifier */
-
 
 /*******************************************************************************
  * Saves the complex node identified by the second argument inside the schema.
@@ -391,9 +389,8 @@ EDI_SchemaNode EDI_GetComplexNodeByID(EDI_Schema  ,
  *  Add a syntax restriction to a segment or composite for the elements it
  *  contains.  
  ******************************************************************************/
-void
-EDI_AddSyntaxNote(EDI_Schema         ,
-                  EDI_SchemaNode     ,  /* Segment/Composite with restriction */
+EDI_Bool
+EDI_AddSyntaxNote(EDI_SchemaNode     ,  /* Segment/Composite with restriction */
                   enum EDI_SyntaxType,  /* Type of syntax restriction         */
                   unsigned int       ,  /* Number of elements included in note*/
                   unsigned int *     ); /* Integer list of element positions  */
@@ -408,14 +405,13 @@ EDI_AddSyntaxNote(EDI_Schema         ,
  *    1.  Child schema node to append
  *    2.  Parent schema node being appended to
  *  Returns:
- *    Schema node which was appended or NULL if failed.
+ *    Parent Schema node or NULL if failed.
  ******************************************************************************/
 EDI_SchemaNode
-EDI_AppendType   (EDI_Schema    ,
-                  EDI_SchemaNode,  /* Parent Node  */
-                  EDI_SchemaNode,  /* Child Node */
-                  unsigned int  ,  /* Minimum occurances of the child */
-                  unsigned int  ); /* Maximum occurances of the child */
+EDI_AppendType(EDI_SchemaNode,  /* Parent Node  */
+               EDI_SchemaNode,  /* Child Node   */
+               unsigned int  ,  /* Minimum occurances of the child */
+               unsigned int  ); /* Maximum occurances of the child */
 
 
 /*******************************************************************************

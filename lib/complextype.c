@@ -36,6 +36,7 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 	node->header.type = type;
 	node->header.nodeID = EDI_strndup(id, strlen(id), schema->memsuite);
 	node->header.refCount = 0;
+	node->header.schema = schema;
 
 	node->firstChild = NULL;
 	node->lastChild  = NULL;
@@ -52,7 +53,7 @@ void EDI_StoreComplexNode(EDI_Schema     schema,
                           EDI_SchemaNode node  )
 {
 	if(node && node->type != EDITYPE_ELEMENT){
-		hashtable_insert(schema->complexNodes, 
+		hashtable_insert(schema->complexNodes,
 		                 (void *)EDI_strdup(node->nodeID), 
 		                 (void *)node);
 	}
@@ -73,21 +74,20 @@ EDI_SchemaNode EDI_GetComplexNodeByID(EDI_Schema      schema,
 	}
 }
 /******************************************************************************/
-void EDI_AddSyntaxNote(EDI_Schema           schema  ,
-                       EDI_SchemaNode       node    ,
-                       enum EDI_SyntaxType  type    ,
-                       unsigned int         count   ,
-                       unsigned int        *elements) 
+EDI_Bool EDI_AddSyntaxNote(EDI_SchemaNode       node    ,
+                           enum EDI_SyntaxType  type    ,
+                           unsigned int         count   ,
+                           unsigned int        *elements) 
 {
 	int             i;
 	unsigned int   *positions;
 	EDI_ComplexType cNode;
 	EDI_SyntaxNote  note;
 
-	if(node->type == EDITYPE_COMPOSITE || node-> type == EDITYPE_SEGMENT){
+	if(node->type == EDITYPE_SEGMENT || node-> type == EDITYPE_COMPOSITE){
 		cNode = (EDI_ComplexType)node;
-		note = MALLOC(schema, sizeof(struct EDI_SyntaxNoteStruct));
-		positions = MALLOC(schema, sizeof(unsigned int) * count);
+		note = MALLOC(node->schema, sizeof(struct EDI_SyntaxNoteStruct));
+		positions = MALLOC(node->schema, sizeof(unsigned int) * count);
 		if(note && positions){
 			note->type = type;
 			for(i = 0; i < count; i++){
@@ -101,16 +101,15 @@ void EDI_AddSyntaxNote(EDI_Schema           schema  ,
 			} else {
 				cNode->firstNote = cNode->finalNote = note;
 			}
-		} else {
-			exit(71);
 		}
+		return EDI_TRUE;
 	} else {
 		fprintf(stderr, "Illegal operation - attempted to add syntax note to schema node of type %d\n", node->type);
+		return EDI_FALSE;
 	}
 }
 /******************************************************************************/
-static EDI_SchemaNode EDI_RemoveChild(EDI_Schema      schema,
-                                      EDI_ComplexType parent,
+static EDI_SchemaNode EDI_RemoveChild(EDI_ComplexType parent,
                                       EDI_ChildNode   child )
 {
 	EDI_SchemaNode detached = NULL;
@@ -133,15 +132,14 @@ static EDI_SchemaNode EDI_RemoveChild(EDI_Schema      schema,
 	    } else if(child->previousSibling){
 	        child->previousSibling->nextSibling = child->nextSibling;
 	    }
-	    FREE(schema, child);
+	    FREE(parent->header.schema, child);
 	    parent->childCount--;
 	    detached->refCount--;
     }
     return detached;
 }
 /******************************************************************************/
-EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
-                              EDI_SchemaNode parent    ,
+EDI_SchemaNode EDI_AppendType(EDI_SchemaNode parent    ,
                               EDI_SchemaNode new       ,
                               unsigned int   min_occurs,
                               unsigned int   max_occurs)
@@ -183,9 +181,9 @@ EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
     	default:
     		return NULL;
     }
-    childMeta = MALLOC(schema, sizeof(struct EDI_ChildNodeStruct));
+    childMeta = MALLOC(parent->schema, sizeof(struct EDI_ChildNodeStruct));
     if(!childMeta){
-    	schema->parser->errorCode = EDI_ERROR_NO_MEM;
+    	parent->schema->parser->errorCode = EDI_ERROR_NO_MEM;
     	return NULL;
     }
     childMeta->min_occurs = min_occurs;
@@ -204,38 +202,37 @@ EDI_SchemaNode EDI_AppendType(EDI_Schema     schema    ,
 	cParent->childCount++;
 	new->refCount++;
 
-	if(cParent == schema->root){
-		schema->stack[0] = cParent->firstChild;
+	if(cParent == parent->schema->root){
+		parent->schema->stack[0] = cParent->firstChild;
 	}
-	return new;
+	return parent;
 }
 /******************************************************************************/
-void EDI_DisposeComplexType(EDI_Schema      schema,
-                            EDI_ComplexType node  )
+void EDI_DisposeComplexType(EDI_ComplexType node)
 {
 	EDI_SchemaNode child;
 	if(node && node->header.refCount == 0){
 		while(node->childCount > 0){
-			child = EDI_RemoveChild(schema, node, node->firstChild);
-			EDI_DisposeNode(schema, child);
+			child = EDI_RemoveChild(node, node->firstChild);
+			EDI_DisposeNode(child);
 		}
 		if(node->header.nodeID){
-			FREE(schema, node->header.nodeID);
+			FREE(node->header.schema, node->header.nodeID);
 		}
 		if(node->firstNote){
 			EDI_SyntaxNote note = node->firstNote;
 			while(note){
 				EDI_SyntaxNote next = note->next;
-				FREE(schema, note->positions);
-				FREE(schema, note);
+				FREE(node->header.schema, note->positions);
+				FREE(node->header.schema, note);
 				note = next;
 			}
 		}		
 		if(node->header.type == EDITYPE_LOOP){
 			EDI_LoopNode l = (EDI_LoopNode)node;
-			FREE(schema, l->startID);
+			FREE(node->header.schema, l->startID);
 		}
-		FREE(schema, node);
+		FREE(node->header.schema, node);
 	}
 	return;
 }

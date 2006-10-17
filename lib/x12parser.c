@@ -94,8 +94,8 @@ void handleX12ElementError(void *myData, int element, int component, enum EDI_El
 /******************************************************************************/
 EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 {
-	unsigned char     ISA_seps[16] = {  3,  6, 17, 20, 31, 34,  50,  53, 
-                                       69, 76, 81, 83, 89, 99, 101, 103 };
+	const unsigned char ISA_seps[16] = {  3,  6, 17, 20, 31, 34,  50,  53,
+                                        69, 76, 81, 83, 89, 99, 101, 103 };
 	unsigned int      i = 0,  j = 0;
 	char              elesep       = 0;
 	char             *bufIter      = NULL;
@@ -337,9 +337,10 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 			default: ;
 		}
 		if(EDI_PARSER->binaryElementSize){
-			if(EDI_PARSER->binaryElementSize <= EDI_PARSER->maxBinaryBufferSize){
-				EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
-			}
+			if(EDI_PARSER->binBuffer){
+				FREE(parser, EDI_PARSER->binBuffer);
+			}		
+			EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
 	    	if(X12_PARSER->savedTag){
 	    		FREE(EDI_PARSER, X12_PARSER->savedTag);
 	    	}
@@ -378,104 +379,100 @@ EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
 	 *  data to the buffer.  This will repeat until the entire binary element
 	 *  is present in memory. 
 	 */
-	if(size > EDI_PARSER->maxBinaryBufferSize){
-		/* Write to file; */
+	if((EDI_PARSER->bufEndPtr - bufIter) > (size - finished)){
+		memcpy(
+			&(EDI_PARSER->binBuffer[finished]), 
+			bufIter, 
+			(size - finished)
+		);
+		finished = size;
+		EDI_PARSER->bufReadPtr += size;
 	} else {
-		if((EDI_PARSER->bufEndPtr - bufIter) > (size - finished)){
-			memcpy(
-				&(EDI_PARSER->binBuffer[finished]), 
-				bufIter, 
-				(size - finished)
-			);
-			finished = size;
-			EDI_PARSER->bufReadPtr += size;
-		} else {
-			memcpy(
-				&(EDI_PARSER->binBuffer[finished]), 
-				(void *)bufIter,
-				(EDI_PARSER->bufEndPtr - bufIter)
-			);
-			finished += (EDI_PARSER->bufEndPtr - bufIter);
-			EDI_PARSER->bufReadPtr = EDI_PARSER->bufEndPtr;
+		memcpy(
+			&(EDI_PARSER->binBuffer[finished]), 
+			(void *)bufIter,
+			(EDI_PARSER->bufEndPtr - bufIter)
+		);
+		finished += (EDI_PARSER->bufEndPtr - bufIter);
+		EDI_PARSER->bufReadPtr = EDI_PARSER->bufEndPtr;
+	}
+	if(finished == size){
+		if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[REPEAT])){
+			type = REPEAT;
+		} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[ELEMENT])){
+			type = ELEMENT;
+		} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[COMPONENT])){
+			type = COMPONENT;
+		} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[SEGMENT])){
+			type = SEGMENT;
 		}
-		if(finished == size){
-			if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[REPEAT])){
-				type = REPEAT;
-			} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[ELEMENT])){
-				type = ELEMENT;
-			} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[COMPONENT])){
-				type = COMPONENT;
-			} else if(!(*EDI_PARSER->bufReadPtr ^ X12_PARSER->delimiters[SEGMENT])){
-				type = SEGMENT;
-			}
-			int element = X12_PARSER->savedElementPosition;
-			int component = X12_PARSER->savedComponentPosition;			
-			switch(type){
-				case ELEMENT:
-				case COMPONENT:
-		        	switch(X12_PARSER->previous){
-		        		case COMPONENT:
-		        			component++;
-		        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
-		        			EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
-			  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
-								EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
-			  				}
-			  				EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
-		        			break;
-		        		case ELEMENT:
-		        			element++;
-		        			component = 0;
-		        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
-		        			if(component == 1){
-								fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-								exit(70);
-		        			} else {
-		        				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
-		        			}
-		        			break;
-						default: 
-							fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-							exit(70);
-		        	}
-		        	break;
-				case SEGMENT:
-		        	if(X12_PARSER->previous == COMPONENT){
-		        		component++;
+		int element = X12_PARSER->savedElementPosition;
+		int component = X12_PARSER->savedComponentPosition;			
+		switch(type){
+			case ELEMENT:
+			case COMPONENT:
+	        	switch(X12_PARSER->previous){
+	        		case COMPONENT:
+	        			component++;
 	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
-		        		EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+	        			EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
 		  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 							EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
 		  				}
-		        		EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
-		        	} else {
-		        		if(X12_PARSER->previous == ELEMENT){
-		        			/* Only increment the element count if this isn't a repeated element. */
-		        			element++;
-		        		}
-		        		component = 0;
+		  				EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
+	        			break;
+	        		case ELEMENT:
+	        			element++;
+	        			component = 0;
 	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
-		     			if(component == 1){
+	        			if(component == 1){
 							fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
 							exit(70);
-		     			} else {
-		     				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
-		     			}
-		        	}
+	        			} else {
+	        				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+	        			}
+	        			break;
+					default: 
+						fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+						exit(70);
+	        	}
+	        	break;
+			case SEGMENT:
+	        	if(X12_PARSER->previous == COMPONENT){
+	        		component++;
+        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
+	        		EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
 	  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
-						EDI_ValidateSyntax(EDI_PARSER->schema, 0, element);
+						EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
 	  				}
-					EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, X12_PARSER->savedTag);
-					break;
-				default:
-					fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-					exit(70);
-			}
-			EDI_PARSER->bufReadPtr++;
-			X12_PARSER->previous = type;
-			EDI_PARSER->binaryElementSize = 0;
-			return (void *)X12_ProcessMessage;
+	        		EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
+	        	} else {
+	        		if(X12_PARSER->previous == ELEMENT){
+	        			/* Only increment the element count if this isn't a repeated element. */
+	        			element++;
+	        		}
+	        		component = 0;
+        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
+	     			if(component == 1){
+						fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+						exit(70);
+	     			} else {
+	     				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
+	     			}
+	        	}
+  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
+					EDI_ValidateSyntax(EDI_PARSER->schema, 0, element);
+  				}
+				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, X12_PARSER->savedTag);
+				break;
+			default:
+				fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
+				exit(70);
 		}
+		EDI_PARSER->bufReadPtr++;
+		X12_PARSER->previous = type;
+		EDI_PARSER->binaryElementSize = 0;
+		return (void *)X12_ProcessMessage;
 	}
 	EDI_SetResumeState(EDI_PARSER->machine, (void *)X12_ProcessBinaryElement);
 	EDI_PARSER->errorCode = EDI_ERROR_BUFFER_END;
@@ -573,127 +570,137 @@ static EDI_Schema loadStandards(EDI_Schema s)
 	EDI_SchemaNode hold;
 
 	if(s){
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I01", 2, 2);
-		EDI_AddElementValue(s, "I01", "00");
-		EDI_AddElementValue(s, "I01", "01");
-		EDI_AddElementValue(s, "I01", "02");
-		EDI_AddElementValue(s, "I01", "03");
-		EDI_AddElementValue(s, "I01", "04");
-		EDI_AddElementValue(s, "I01", "05");
-		EDI_AddElementValue(s, "I01", "06");
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I01", 2, 2);
+		EDI_AddElementValue(hold, "00");
+		EDI_AddElementValue(hold, "01");
+		EDI_AddElementValue(hold, "02");
+		EDI_AddElementValue(hold, "03");
+		EDI_AddElementValue(hold, "04");
+		EDI_AddElementValue(hold, "05");
+		EDI_AddElementValue(hold, "06");
+		
 		EDI_CreateElementType(s, EDI_DATA_STRING, "I02", 10, 10);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I03", 2, 2);
-		EDI_AddElementValue(s, "I03", "00");
-		EDI_AddElementValue(s, "I03", "01");
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I03", 2, 2);
+		EDI_AddElementValue(hold, "00");
+		EDI_AddElementValue(hold, "01");
+
 		EDI_CreateElementType(s, EDI_DATA_STRING, "I04", 10, 10);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I05", 2, 2);
-		EDI_AddElementValue(s, "I05", "01");
-		EDI_AddElementValue(s, "I05", "02");
-		EDI_AddElementValue(s, "I05", "03");
-		EDI_AddElementValue(s, "I05", "04");
-		EDI_AddElementValue(s, "I05", "07");
-		EDI_AddElementValue(s, "I05", "08");
-		EDI_AddElementValue(s, "I05", "09");
-		EDI_AddElementValue(s, "I05", "10");
-		EDI_AddElementValue(s, "I05", "11");
-		EDI_AddElementValue(s, "I05", "12");
-		EDI_AddElementValue(s, "I05", "13");
-		EDI_AddElementValue(s, "I05", "14");
-		EDI_AddElementValue(s, "I05", "15");
-		EDI_AddElementValue(s, "I05", "16");
-		EDI_AddElementValue(s, "I05", "17");
-		EDI_AddElementValue(s, "I05", "18");
-		EDI_AddElementValue(s, "I05", "19");
-		EDI_AddElementValue(s, "I05", "20");
-		EDI_AddElementValue(s, "I05", "21");
-		EDI_AddElementValue(s, "I05", "22");
-		EDI_AddElementValue(s, "I05", "23");
-		EDI_AddElementValue(s, "I05", "24");
-		EDI_AddElementValue(s, "I05", "25");
-		EDI_AddElementValue(s, "I05", "26");
-		EDI_AddElementValue(s, "I05", "27");
-		EDI_AddElementValue(s, "I05", "28");
-		EDI_AddElementValue(s, "I05", "29");
-		EDI_AddElementValue(s, "I05", "30");
-		EDI_AddElementValue(s, "I05", "31");
-		EDI_AddElementValue(s, "I05", "32");
-		EDI_AddElementValue(s, "I05", "33");
-		EDI_AddElementValue(s, "I05", "34");
-		EDI_AddElementValue(s, "I05", "35");
-		EDI_AddElementValue(s, "I05", "36");
-		EDI_AddElementValue(s, "I05", "37");
-		EDI_AddElementValue(s, "I05", "38");
-		EDI_AddElementValue(s, "I05", "AM");
-		EDI_AddElementValue(s, "I05", "NR");
-		EDI_AddElementValue(s, "I05", "SA");
-		EDI_AddElementValue(s, "I05", "SN");
-		EDI_AddElementValue(s, "I05", "ZZ");
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I05", 2, 2);
+		EDI_AddElementValue(hold, "01");
+		EDI_AddElementValue(hold, "02");
+		EDI_AddElementValue(hold, "03");
+		EDI_AddElementValue(hold, "04");
+		EDI_AddElementValue(hold, "07");
+		EDI_AddElementValue(hold, "08");
+		EDI_AddElementValue(hold, "09");
+		EDI_AddElementValue(hold, "10");
+		EDI_AddElementValue(hold, "11");
+		EDI_AddElementValue(hold, "12");
+		EDI_AddElementValue(hold, "13");
+		EDI_AddElementValue(hold, "14");
+		EDI_AddElementValue(hold, "15");
+		EDI_AddElementValue(hold, "16");
+		EDI_AddElementValue(hold, "17");
+		EDI_AddElementValue(hold, "18");
+		EDI_AddElementValue(hold, "19");
+		EDI_AddElementValue(hold, "20");
+		EDI_AddElementValue(hold, "21");
+		EDI_AddElementValue(hold, "22");
+		EDI_AddElementValue(hold, "23");
+		EDI_AddElementValue(hold, "24");
+		EDI_AddElementValue(hold, "25");
+		EDI_AddElementValue(hold, "26");
+		EDI_AddElementValue(hold, "27");
+		EDI_AddElementValue(hold, "28");
+		EDI_AddElementValue(hold, "29");
+		EDI_AddElementValue(hold, "30");
+		EDI_AddElementValue(hold, "31");
+		EDI_AddElementValue(hold, "32");
+		EDI_AddElementValue(hold, "33");
+		EDI_AddElementValue(hold, "34");
+		EDI_AddElementValue(hold, "35");
+		EDI_AddElementValue(hold, "36");
+		EDI_AddElementValue(hold, "37");
+		EDI_AddElementValue(hold, "38");
+		EDI_AddElementValue(hold, "AM");
+		EDI_AddElementValue(hold, "NR");
+		EDI_AddElementValue(hold, "SA");
+		EDI_AddElementValue(hold, "SN");
+		EDI_AddElementValue(hold, "ZZ");
+
 		EDI_CreateElementType(s, EDI_DATA_STRING, "I06", 15, 15);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "I07", 15, 15);
 		EDI_CreateElementType(s, EDI_DATA_DATE, "I08", 6, 6);
 		EDI_CreateElementType(s, EDI_DATA_TIME, "I09", 4, 4);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "I65", 1, 1);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I11", 5, 5);
-		EDI_AddElementValue(s, "I11", "00200");
-		EDI_AddElementValue(s, "I11", "00201");
-		EDI_AddElementValue(s, "I11", "00204");
-		EDI_AddElementValue(s, "I11", "00300");
-		EDI_AddElementValue(s, "I11", "00301");
-		EDI_AddElementValue(s, "I11", "00302");
-		EDI_AddElementValue(s, "I11", "00303");
-		EDI_AddElementValue(s, "I11", "00304");
-		EDI_AddElementValue(s, "I11", "00305");
-		EDI_AddElementValue(s, "I11", "00306");
-		EDI_AddElementValue(s, "I11", "00307");
-		EDI_AddElementValue(s, "I11", "00400");
-		EDI_AddElementValue(s, "I11", "00401");
-		EDI_AddElementValue(s, "I11", "00402");
-		EDI_AddElementValue(s, "I11", "00403");
-		EDI_AddElementValue(s, "I11", "00404");
-		EDI_AddElementValue(s, "I11", "00405");
-		EDI_AddElementValue(s, "I11", "00406");
-		EDI_AddElementValue(s, "I11", "00500");
-		EDI_AddElementValue(s, "I11", "00501");
-		EDI_AddElementValue(s, "I11", "00502");
-		EDI_AddElementValue(s, "I11", "00503");
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I11", 5, 5);
+		EDI_AddElementValue(hold, "00200");
+		EDI_AddElementValue(hold, "00201");
+		EDI_AddElementValue(hold, "00204");
+		EDI_AddElementValue(hold, "00300");
+		EDI_AddElementValue(hold, "00301");
+		EDI_AddElementValue(hold, "00302");
+		EDI_AddElementValue(hold, "00303");
+		EDI_AddElementValue(hold, "00304");
+		EDI_AddElementValue(hold, "00305");
+		EDI_AddElementValue(hold, "00306");
+		EDI_AddElementValue(hold, "00307");
+		EDI_AddElementValue(hold, "00400");
+		EDI_AddElementValue(hold, "00401");
+		EDI_AddElementValue(hold, "00402");
+		EDI_AddElementValue(hold, "00403");
+		EDI_AddElementValue(hold, "00404");
+		EDI_AddElementValue(hold, "00405");
+		EDI_AddElementValue(hold, "00406");
+		EDI_AddElementValue(hold, "00500");
+		EDI_AddElementValue(hold, "00501");
+		EDI_AddElementValue(hold, "00502");
+		EDI_AddElementValue(hold, "00503");
+
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "I12", 9, 9);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I13", 1, 1);
-		EDI_AddElementValue(s, "I13", "0");
-		EDI_AddElementValue(s, "I13", "1");
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I14", 1, 1);
-		EDI_AddElementValue(s, "I14", "I");
-		EDI_AddElementValue(s, "I14", "P");
-		EDI_AddElementValue(s, "I14", "T");
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I13", 1, 1);
+		EDI_AddElementValue(hold, "0");
+		EDI_AddElementValue(hold, "1");
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I14", 1, 1);
+		EDI_AddElementValue(hold, "I");
+		EDI_AddElementValue(hold, "P");
+		EDI_AddElementValue(hold, "T");
+
 		EDI_CreateElementType(s, EDI_DATA_STRING, "I15", 1, 1);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "I16", 1, 5);
 	
 		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ISA");
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I01"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I02"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I03"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I04"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I05"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I06"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I05"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I07"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I08"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I09"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I65"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I11"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I12"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I13"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I14"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I15"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I01"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I02"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I03"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I04"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I05"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I06"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I05"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I07"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I08"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I09"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I65"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I11"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I12"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I13"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I14"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I15"), 1, 1);
 		EDI_StoreComplexNode(s, hold);
 		
 		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "IEA");
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I16"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetElementByID(s, "I12"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I16"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I12"), 1, 1);
 		EDI_StoreComplexNode(s, hold);
 
 		hold = EDI_CreateComplexType(s, EDITYPE_TRANSACTION, "ANSI X12 Interchange");
-		EDI_AppendType(s, hold, EDI_GetComplexNodeByID(s, "ISA"), 1, 1);
-		EDI_AppendType(s, hold, EDI_GetComplexNodeByID(s, "IEA"), 1, 1);
+		EDI_AppendType(hold, EDI_GetComplexNodeByID(s, "ISA"), 1, 1);
+		EDI_AppendType(hold, EDI_GetComplexNodeByID(s, "IEA"), 1, 1);
 		EDI_StoreComplexNode(s, hold);
 		
 		EDI_SetSegmentErrorHandler(s, &handleX12SegmentError);
