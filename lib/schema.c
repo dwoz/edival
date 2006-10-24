@@ -102,7 +102,7 @@ static EDI_Schema schemaCreate(enum EDI_DocumentType      type    ,
 /******************************************************************************/
 static void schemaInit(EDI_Schema schema)
 {
-	schema->identifier       = "";
+	schema->identifier       = NULL;
 	schema->documentType     = EDI_UNKNOWN_DOC;
 	schema->elements         = create_hashtable(20);
 	schema->complexNodes     = create_hashtable(20);
@@ -120,6 +120,9 @@ static void schemaInit(EDI_Schema schema)
 void EDI_SetDocumentRoot(EDI_Schema            schema,
                          EDI_SchemaNode        node  )
 {
+	if(schema->stack[0]){
+		FREE(schema, schema->stack[0]);
+	}
 	if(node->type == EDITYPE_DOCUMENT){
 		schema->root = (EDI_ComplexType)node;
 		EDI_ChildNode root = MALLOC(schema, sizeof(struct EDI_ChildNodeStruct));
@@ -141,7 +144,7 @@ EDI_SchemaNode EDI_GetDocumentRoot(EDI_Schema schema)
 /******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema schema)
 {
-	char *id = NULL;
+	char *id = "";
 	if(schema){
 		id = schema->identifier;
 	}
@@ -151,6 +154,9 @@ char *EDI_GetSchemaId(EDI_Schema schema)
 void EDI_SetSchemaId(EDI_Schema schema, const char *id)
 {
 	if(schema){
+		if(schema->identifier){
+			FREE(schema, schema->identifier);
+		}
 		schema->identifier = EDI_strndup(id, strlen(id), schema->memsuite);
 	}
 }
@@ -599,10 +605,15 @@ void EDI_SchemaFree(EDI_Schema schema)
 	   strcmp(EDI_GetSchemaId(schema->parser->schema), schema->identifier) == 0){
 		schema->parser->schema = NULL;
 		schema->parser->validate = EDI_FALSE;
+	}
+	if(schema->identifier){
 		FREE(schema, schema->identifier);
 	}
 	if(schema->root){
 		EDI_DisposeNode((EDI_SchemaNode)schema->root);
+	}
+	if(schema->stack[0]){
+		FREE(schema, schema->stack[0]);
 	}
 	hashtable_destroy(schema->complexNodes, 0);
 	hashtable_destroy(schema->elements, 0);

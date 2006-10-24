@@ -315,7 +315,7 @@ void EDI_DisposeComplexType(EDI_ComplexType node)
 				note = next;
 			}
 		}		
-		if(node->header.type == EDITYPE_LOOP){
+		if(node->header.type == EDITYPE_LOOP || node->header.type == EDITYPE_DOCUMENT){
 			EDI_LoopNode l = (EDI_LoopNode)node;
 			FREE(node->header.schema, l->startID);
 		}

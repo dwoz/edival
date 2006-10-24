@@ -575,6 +575,7 @@ void X12_ParserDestroy(EDI_Parser parser)
 	if(X12_PARSER->savedTag){
 		free(X12_PARSER->savedTag);
 	}
+	FREE(parser, X12_PARSER->data);
 	FREE(parser, X12_PARSER);
 	EDI_PARSER->child = NULL;
 }
