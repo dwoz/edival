@@ -168,6 +168,7 @@ static void parserInit(EDI_Parser parser)
 	parser->docType               = EDI_UNKNOWN_DOC;
 	parser->schema                = NULL;
 	parser->validate              = EDI_FALSE;
+	parser->final                 = EDI_FALSE;
 	return;
 }
 /******************************************************************************/
@@ -312,7 +313,7 @@ EDI_Schema EDI_RemoveSchema(EDI_Parser parser)
 	return schema;
 }
 /******************************************************************************/
-enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
+enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len, EDI_Bool final)
 {
     void *buffer = NULL;
 
@@ -331,32 +332,32 @@ enum EDI_Status EDI_Parse(EDI_Parser parser, const char *s, int len)
         return EDI_STATUS_ERROR;
     } else {
         memcpy(buffer, s, len);
-        return EDI_ParseBuffer(parser, len);
+        return EDI_ParseBuffer(parser, len, final);
     }
 }
 /******************************************************************************/
-enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len)
+enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len, EDI_Bool final)
 {
 	enum EDI_Error error = EDI_ERROR_NONE;
 
 	if(!parser->segmentStartHandler){
-		fprintf(stderr, "FATAL (edival): No callback registered event: Segment Start\n");
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Segment Start\n");
 		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->segmentEndHandler){
-		fprintf(stderr, "FATAL (edival): No callback registered event: Segment End\n");
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Segment End\n");
 		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->compositeStartHandler){
-		fprintf(stderr, "FATAL (edival): No callback registered event: Composite Start\n");
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Composite Start\n");
 		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->compositeEndHandler){
-		fprintf(stderr, "FATAL (edival): No callback registered event: Composite End\n");
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Composite End\n");
 		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(!parser->elementHandler){
-		fprintf(stderr, "FATAL (edival): No callback registered event: Element\n");
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Element\n");
 		error = parser->errorCode = EDI_ERROR_ABORTED;
 	}
 	if(error){
@@ -384,10 +385,14 @@ enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len)
 	}
 	parser->bufEndPtr += len;
 	*(parser->bufEndPtr) = '\0';
+	parser->final = final;
 	error = EDI_StateMachineRun(parser->machine, parser);
 	switch(error){
 		case EDI_ERROR_NONE:
 			parser->errorCode = EDI_ERROR_NONE;
+			return EDI_STATUS_OK;
+		case EDI_ERROR_FINISHED:
+			parser->errorCode = EDI_ERROR_FINISHED;
 			return EDI_STATUS_OK;
 		case EDI_ERROR_SUSPENDED:
 			parser->errorCode = EDI_ERROR_NONE;

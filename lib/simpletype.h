@@ -56,6 +56,7 @@ void EDI_DisposeSimpleType(EDI_SchemaNode);
 enum EDI_ElementValidationError 
 EDI_CheckElementConstraints(EDI_SimpleType *, /* The element */
                             const char     *, /* String/element value  */
-                            int            ); /* String/element length */
+                            int             , /* String/element length */
+                            EDI_DataElement );/* Reference to a conversion element (output param) */
 
 #endif /* EDISimpleType_INCLUDED */

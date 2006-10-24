@@ -25,7 +25,6 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser);
 EDI_StateHandler X12_ProcessMessage(EDI_Parser);
 EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser);
 EDI_StateHandler X12_ProcessIEA(EDI_Parser);
-static EDI_Schema loadStandards(EDI_Schema);
 void X12_ParserDestroy(EDI_Parser);
 
 /******************************************************************************/
@@ -78,30 +77,21 @@ if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){\
 		element           ,\
 		component         ,\
 		value             ,\
-		length             \
+		length            ,\
+		X12_PARSER->data   \
 	);                    \
-}
-/******************************************************************************/
-void handleX12SegmentError(void *myData, const char *tag, enum EDI_SegmentValidationError err)
-{
-	fprintf(stderr, "*~*~* Segment error %d on %s\n", err, tag);
-}
-/******************************************************************************/
-void handleX12ElementError(void *myData, int element, int component, enum EDI_ElementValidationError err)
-{
-	fprintf(stderr, "\nElement error %d on element %2.2d-%d\n", err, element, component);
 }
 /******************************************************************************/
 EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 {
 	const unsigned char ISA_seps[16] = {  3,  6, 17, 20, 31, 34,  50,  53,
                                         69, 76, 81, 83, 89, 99, 101, 103 };
-	unsigned int      i = 0,  j = 0;
-	char              elesep       = 0;
-	char             *bufIter      = NULL;
-	char              componentSep = '\0';
-	char              repeatSep    = '\0';
-	struct token      tok;
+	unsigned int    i = 0,  j = 0;
+	char            elesep       = 0;
+	char           *bufIter      = NULL;
+	char            componentSep = '\0';
+	char            repeatSep    = '\0';
+	struct token    tok;
 
 	if((EDI_PARSER->bufEndPtr - EDI_PARSER->bufReadPtr) < 106){
 		EDI_SetResumeState(EDI_PARSER->machine, EDI_PARSER->process);
@@ -132,20 +122,25 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 	componentSep                    = bufIter[104];
 	X12_PARSER->delimiters[SEGMENT] = bufIter[105];
 	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
-	X12_PARSER->segmentError = EDI_ValidateSegmentPosition(X12_PARSER->x12Schema, "ISA");
-	if(X12_PARSER->segmentError){
-		fprintf(stderr, "SEG_ERR: %d ***", X12_PARSER->segmentError);
+	if(EDI_PARSER->schema->documentType == EDI_ANSI_X12){
+		EDI_PARSER->validate = EDI_TRUE;
+		X12_PARSER->segmentError = EDI_ValidateSegmentPosition(EDI_PARSER->schema, "ISA");
+	} else {
+		EDI_PARSER->validate = EDI_FALSE;
 	}
 	EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "ISA");
 	i = j = 0;
 	while(tok.type != SEGMENT){
 		X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
 		i++;
+		/* Setup the defaults: string data and the unconverted input string */
+		X12_PARSER->data->type = EDI_DATA_STRING;
+		X12_PARSER->data->data.string = tok.token;
 		switch(tok.type){
 			case ELEMENT:
 			{
-			  	if(!EDI_ValidateElement(X12_PARSER->x12Schema, i, &j, tok.token, strlen(tok.token))
-			  		&& i == 12){
+				ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, i, &j, tok.token, tok.length);
+				if(i == 12){
 					char *error;
 					long  version = strtol(tok.token, &error, 10);
 					if(version == 0 && error != '\0'){
@@ -158,11 +153,13 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 					X12_PARSER->version = version / 100;
 					X12_PARSER->release = version % 100;
 				}
-				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 				break;
 			}
 			case SEGMENT:
-				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+				ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, i, &j, tok.token, tok.length);
+				//EDI_ValidateElement(X12_PARSER->x12Schema, i, &j, tok.token, strlen(tok.token), X12_PARSER->data);
+				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, "ISA");
 				break;
 			default:
@@ -171,6 +168,8 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 	}
 	X12_PARSER->delimiters[COMPONENT] = componentSep;
 	X12_PARSER->previous = SEGMENT;
+	X12_PARSER->savedElementPosition = 0;
+	X12_PARSER->savedComponentPosition = 0;
 	while(bufIter < EDI_PARSER->bufEndPtr){
 		if(*bufIter++ == X12_PARSER->delimiters[ELEMENT]){
 			bufIter -= 4;
@@ -178,11 +177,10 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 				bufIter++;
 			}
 			EDI_GAP_SCAN(EDI_PARSER, bufIter);
-			if((strncmp(bufIter, "GS", 2) == 0)){
-				return (void *)X12_ProcessMessage;
-			}
 			if((strncmp(bufIter, "IEA", 3) == 0)){
 				return (void *)X12_ProcessIEA;
+			} else {
+				return (void *)X12_ProcessMessage;
 			}
 		}
 	}
@@ -193,12 +191,11 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 /******************************************************************************/
 EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 {
-	int                        element   = 0;
-	int                        component = 0;
-	char                      *tag       = NULL;
-	char                      *bufIter   = NULL;
-	struct token               tok;
-	char                      *IEA_tag   = "IEA";
+	int             element   = 0;
+	int             component = 0;
+	char           *tag       = NULL;
+	char           *bufIter   = NULL;
+	struct token    tok;
 
 	bufIter = EDI_PARSER->bufReadPtr;
 	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
@@ -208,11 +205,27 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 				tok.token++;
 			}
 			EDI_GAP_SCAN(EDI_PARSER, tok.token);
-		 	if(string_eq(tok.token, IEA_tag)){
-				EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, IEA_tag);
+		 	/*if(string_eq(tok.token, "IEA")){
+		 		EDI_ValidateSegmentPosition(X12_PARSER->x12Schema, "IEA");
+				EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA");
 				X12_PARSER->previous = ELEMENT;
 				EDI_PARSER->bufReadPtr = bufIter;
 				return (void *)X12_ProcessIEA;
+			} else*/ 
+			if(string_eq(tok.token, "ISA")){
+				/* If this happens, we had an incomplete interchange (missing IEA) 
+				 * and we were lucky enough that the next interchange used the same
+				 * delimiter! */
+				*--bufIter = X12_PARSER->delimiters[ELEMENT];
+				bufIter -= 3;
+				X12_PARSER->delimiters[COMPONENT] = '\0';
+				X12_PARSER->delimiters[ELEMENT]   = '\0';
+				X12_PARSER->delimiters[REPEAT]    = '\0';
+				X12_PARSER->delimiters[SEGMENT]   = '\0';
+				X12_PARSER->version             = 0;
+				X12_PARSER->release             = 0;
+				EDI_PARSER->bufReadPtr = bufIter;
+				return (void *)X12_ProcessISA;
 			}
 		}
 	} else {
@@ -222,6 +235,9 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	}
 	while(tok.type != UNKNOWN){
 		EDI_PARSER->bufReadPtr = bufIter;
+		/* Setup the defaults: string data and the unconverted input string */
+		X12_PARSER->data->type = EDI_DATA_STRING;
+		X12_PARSER->data->data.string = tok.token;
 		switch(tok.type){
 			case REPEAT:
 				if(EDI_PARSER->repeatHandler){
@@ -229,14 +245,15 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 				} else {
 					fprintf(stderr, "FATAL (edival): A repeated element was found in the data stream but no \n\
 					callback function has been registered for the event using EDI_SetRepeatHandler()\n");
-					exit(70);
+					EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
+					return EDI_PARSER->error;
 				}
 			case ELEMENT:
 	        	switch(X12_PARSER->previous){
 	        		case COMPONENT:
 	        			component++;
 	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
-	        			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	        			EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 		  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 							EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
 		  				}
@@ -259,13 +276,13 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
 	        			if(component == 1){
 	        				EDI_PARSER->compositeStartHandler(EDI_PARSER->userData);
-	        				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	        				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 			  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 								EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
 			  				}
 	        				EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
 	        			} else {
-	        				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	        				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 	        			}
 	        			break;
 					default: ;
@@ -283,13 +300,13 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
      			if(component == 1){
      				EDI_PARSER->compositeStartHandler(EDI_PARSER->userData);
      			}
-     			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+     			EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 				break;
 			case SEGMENT:
 	        	if(X12_PARSER->previous == COMPONENT){
 	        		component++;
         			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
-	        		EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	        		EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 	  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 						EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
 	  				}
@@ -303,34 +320,46 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
         			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, tok.token, tok.length);
 	     			if(component == 1){
 	     				EDI_PARSER->compositeStartHandler(EDI_PARSER->userData);
-	     				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	     				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 		  				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 							EDI_ValidateSyntax(EDI_PARSER->schema, element, component);
 		  				}
 	     				EDI_PARSER->compositeEndHandler(EDI_PARSER->userData);
 	     			} else {
-	     				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
+	     				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 	     			}
 	        	}
   				if((EDI_PARSER->validate ^ X12_PARSER->segmentError) == EDI_TRUE){
 					EDI_ValidateSyntax(EDI_PARSER->schema, 0, element);
   				}
 				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, tag);
-				tag = NULL;
 				element = 0;
     			component = 0;
-				while(bufIter < EDI_PARSER->bufEndPtr){
-					if(*bufIter++ == X12_PARSER->delimiters[ELEMENT]){
-						bufIter -= 4;
-						while(!(isalnum(*bufIter))){
-							bufIter++;
+				if(tag[0] == 'I' && tag[1] == 'E' && tag[2] == 'A'){
+					X12_PARSER->previous = tok.type;
+					return (void *)X12_ProcessIEA;
+				} else {
+					tag = NULL;
+					while(bufIter < EDI_PARSER->bufEndPtr){
+						if(*bufIter++ == X12_PARSER->delimiters[ELEMENT]){
+							bufIter -= 4;
+							while(!(isalnum(*bufIter))){
+								bufIter++;
+							}
+							EDI_GAP_SCAN(EDI_PARSER, bufIter);
+							if(bufIter[0] == 'I' && bufIter[1] == 'S' && bufIter[2] == 'A'){
+								/* If this happens, we probably have a bad interchange. (missing IEA)
+								 * Same scenario as above. */
+								X12_PARSER->delimiters[COMPONENT] = '\0';
+								X12_PARSER->delimiters[ELEMENT]   = '\0';
+								X12_PARSER->delimiters[REPEAT]    = '\0';
+								X12_PARSER->delimiters[SEGMENT]   = '\0';
+								X12_PARSER->version             = 0;
+								X12_PARSER->release             = 0;
+								return EDI_PARSER->seekHeader;
+							}
+							break;
 						}
-						EDI_GAP_SCAN(EDI_PARSER, bufIter);
-						if(bufIter[0] == 'I' && bufIter[1] == 'E' && bufIter[2] == 'A'){
-							X12_PARSER->previous = tok.type;
-							return (void *)X12_ProcessIEA;
-						}
-						break;
 					}
 				}
 				break;
@@ -339,7 +368,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 		if(EDI_PARSER->binaryElementSize){
 			if(EDI_PARSER->binBuffer){
 				FREE(parser, EDI_PARSER->binBuffer);
-			}		
+			}
 			EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
 	    	if(X12_PARSER->savedTag){
 	    		FREE(EDI_PARSER, X12_PARSER->savedTag);
@@ -368,10 +397,10 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 /******************************************************************************/
 EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
 {
-	char *bufIter           = EDI_PARSER->bufReadPtr;
-	long long int size      = EDI_PARSER->binaryElementSize;
-	long long int finished  = EDI_PARSER->bytesHandled;
-	enum X12_Delimiter type = UNKNOWN;
+	char              *bufIter  = EDI_PARSER->bufReadPtr;
+	long long int      size     = EDI_PARSER->binaryElementSize;
+	long long int      finished = EDI_PARSER->bytesHandled;
+	enum X12_Delimiter type     = UNKNOWN;
 	
 	/*  
 	 *  If the current buffer does not hold the entire binary element, we
@@ -427,14 +456,16 @@ EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
 	        			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
 	        			if(component == 1){
 							fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-							exit(70);
+							EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
+							return EDI_PARSER->error;
 	        			} else {
 	        				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
 	        			}
 	        			break;
 					default: 
 						fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-						exit(70);
+						EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
+						return EDI_PARSER->error;
 	        	}
 	        	break;
 			case SEGMENT:
@@ -455,7 +486,8 @@ EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
         			ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, element, &component, NULL, 1);
 	     			if(component == 1){
 						fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-						exit(70);
+						EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
+						return EDI_PARSER->error;
 	     			} else {
 	     				EDI_PARSER->binBufferHandler(EDI_PARSER->userData, EDI_PARSER->binBuffer, EDI_PARSER->binaryElementSize);
 	     			}
@@ -467,7 +499,8 @@ EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
 				break;
 			default:
 				fprintf(stderr, "FATAL (edival): Invalid Binary data element type!  Terminating process.");
-				exit(70);
+				EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
+				return EDI_PARSER->error;
 		}
 		EDI_PARSER->bufReadPtr++;
 		X12_PARSER->previous = type;
@@ -481,57 +514,35 @@ EDI_StateHandler X12_ProcessBinaryElement(EDI_Parser parser)
 /******************************************************************************/
 EDI_StateHandler X12_ProcessIEA(EDI_Parser parser)
 {
-	int             dummy   = 0;
-	char           *bufIter = NULL;
-	struct token    tok;
-	
-	X12_PARSER->delimiters[COMPONENT] = '\0';
-	X12_PARSER->delimiters[REPEAT]    = '\0';
-	
-	bufIter = EDI_PARSER->bufReadPtr;
-	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
-	while(tok.type != UNKNOWN){
-		EDI_PARSER->bufReadPtr = bufIter;
-		if(tok.type == ELEMENT){
-			if(X12_PARSER->previous == SEGMENT){
-				X12_PARSER->segmentError = EDI_ValidateSegmentPosition(X12_PARSER->x12Schema, "IEA");
-				EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA");
-			} else {
-				EDI_ValidateElement(X12_PARSER->x12Schema, 1, &dummy, tok.token, strlen(tok.token));
-				EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
-			}
-		} else if(tok.type == SEGMENT){	
-			EDI_ValidateElement(X12_PARSER->x12Schema, 2, &dummy, tok.token, strlen(tok.token));
-			EDI_PARSER->elementHandler(EDI_PARSER->userData, tok.token);
-			EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, "IEA");
-			break;
+	/* If this is the end of the buffer and there are no more ISA segments
+	 * possible, change the state to finished. */
+	if(parser->final && ((EDI_PARSER->bufEndPtr - EDI_PARSER->bufReadPtr) < 106)){
+		if(parser->schema && 
+			parser->schema->loopEndHandler &&
+			parser->schema->root){
+			parser->schema->loopEndHandler(
+				parser->userData,
+				(EDI_GetDocumentRoot(parser->schema))->nodeID
+			);
 		}
-		X12_PARSER->previous = tok.type;
-		X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
-	}
-	while(bufIter < EDI_PARSER->bufEndPtr){
-		if(!(*bufIter++ ^ X12_PARSER->delimiters[ELEMENT])){
-			bufIter -= 4;
-			if(!(isalnum(*bufIter))){
-				bufIter++;
-			}
-			EDI_GAP_SCAN(EDI_PARSER, bufIter);
-			if((strncmp(bufIter, "ISA", 3) == 0)){
-				EDI_PARSER->bufReadPtr = bufIter;
-				X12_PARSER->delimiters[ELEMENT] = '\0';
-				X12_PARSER->delimiters[SEGMENT] = '\0';
-				X12_PARSER->version             = 0;
-				X12_PARSER->release             = 0;
-				return (void *)X12_ProcessISA;
-			}
-			break;
-		}
-	}
-	if(tok.type == UNKNOWN){
-    	EDI_SetResumeState(EDI_PARSER->machine, (void *)X12_ProcessIEA);
-		EDI_PARSER->errorCode = EDI_ERROR_BUFFER_END;
+		EDI_PARSER->errorCode = EDI_ERROR_FINISHED;
 		return EDI_PARSER->error;
-	} else {
+	} else {	
+	/* Otherwise, initialize the parser and go back to the generic EDI parser
+	 * and look for more (not necessarily X12) data. */
+		X12_PARSER->delimiters[COMPONENT] = '\0';
+		X12_PARSER->delimiters[ELEMENT]   = '\0';
+		X12_PARSER->delimiters[REPEAT]    = '\0';
+		X12_PARSER->delimiters[SEGMENT]   = '\0';
+		X12_PARSER->version               = 0;
+		X12_PARSER->release               = 0;
+		if(X12_PARSER->savedTag){
+			free(X12_PARSER->savedTag);
+		}
+		X12_PARSER->savedElementPosition   = 0;
+		X12_PARSER->savedComponentPosition = 0;
+		X12_PARSER->error                  = X12_ERROR_NONE;
+		X12_PARSER->previous               = SEGMENT;
 		return EDI_PARSER->seekHeader;
 	}
 }
@@ -541,18 +552,8 @@ X12_Parser X12_ParserCreate(EDI_Parser parent)
 	X12_Parser new = NULL;
 	new = MALLOC(parent, sizeof(struct X12_ParserStruct));
 	if(new){
-		new->delimiters[ELEMENT]    = '\0';
-		new->delimiters[COMPONENT]  = '\0';
-		new->delimiters[REPEAT]     = '\0';
-		new->delimiters[SEGMENT]    = '\0';
-		new->version                = 0;
-		new->release                = 0;
-		new->savedTag               = NULL;
-		new->savedElementPosition   = 0;
-		new->savedComponentPosition = 0;
-		new->x12Schema              = loadStandards(EDI_SchemaCreate_MM(parent->memsuite));
-		new->error                  = X12_ERROR_NONE;
-		new->previous               = SEGMENT;
+		memset(new, 0, sizeof(struct X12_ParserStruct));
+		new->data                   = MALLOC(parent, sizeof(struct EDI_DataElementStruct));
 		parent->process             = (void *)X12_ProcessISA;
 		parent->freeChild           = (void *)X12_ParserDestroy;
 		EDI_AddState(parent->machine, (void *)X12_ProcessISA, 0);
@@ -560,154 +561,8 @@ X12_Parser X12_ParserCreate(EDI_Parser parent)
 		EDI_AddState(parent->machine, (void *)X12_ProcessBinaryElement, 0);
 		EDI_AddState(parent->machine, (void *)X12_ProcessIEA, 0);
 		new->parent = parent;
-		new->x12Schema->parser = parent;
 	}
 	return new;
-}
-/******************************************************************************/
-static EDI_Schema loadStandards(EDI_Schema s)
-{
-	EDI_SchemaNode hold;
-
-	if(s){
-		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I01", 2, 2);
-		EDI_AddElementValue(hold, "00");
-		EDI_AddElementValue(hold, "01");
-		EDI_AddElementValue(hold, "02");
-		EDI_AddElementValue(hold, "03");
-		EDI_AddElementValue(hold, "04");
-		EDI_AddElementValue(hold, "05");
-		EDI_AddElementValue(hold, "06");
-		
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I02", 10, 10);
-
-		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I03", 2, 2);
-		EDI_AddElementValue(hold, "00");
-		EDI_AddElementValue(hold, "01");
-
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I04", 10, 10);
-
-		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I05", 2, 2);
-		EDI_AddElementValue(hold, "01");
-		EDI_AddElementValue(hold, "02");
-		EDI_AddElementValue(hold, "03");
-		EDI_AddElementValue(hold, "04");
-		EDI_AddElementValue(hold, "07");
-		EDI_AddElementValue(hold, "08");
-		EDI_AddElementValue(hold, "09");
-		EDI_AddElementValue(hold, "10");
-		EDI_AddElementValue(hold, "11");
-		EDI_AddElementValue(hold, "12");
-		EDI_AddElementValue(hold, "13");
-		EDI_AddElementValue(hold, "14");
-		EDI_AddElementValue(hold, "15");
-		EDI_AddElementValue(hold, "16");
-		EDI_AddElementValue(hold, "17");
-		EDI_AddElementValue(hold, "18");
-		EDI_AddElementValue(hold, "19");
-		EDI_AddElementValue(hold, "20");
-		EDI_AddElementValue(hold, "21");
-		EDI_AddElementValue(hold, "22");
-		EDI_AddElementValue(hold, "23");
-		EDI_AddElementValue(hold, "24");
-		EDI_AddElementValue(hold, "25");
-		EDI_AddElementValue(hold, "26");
-		EDI_AddElementValue(hold, "27");
-		EDI_AddElementValue(hold, "28");
-		EDI_AddElementValue(hold, "29");
-		EDI_AddElementValue(hold, "30");
-		EDI_AddElementValue(hold, "31");
-		EDI_AddElementValue(hold, "32");
-		EDI_AddElementValue(hold, "33");
-		EDI_AddElementValue(hold, "34");
-		EDI_AddElementValue(hold, "35");
-		EDI_AddElementValue(hold, "36");
-		EDI_AddElementValue(hold, "37");
-		EDI_AddElementValue(hold, "38");
-		EDI_AddElementValue(hold, "AM");
-		EDI_AddElementValue(hold, "NR");
-		EDI_AddElementValue(hold, "SA");
-		EDI_AddElementValue(hold, "SN");
-		EDI_AddElementValue(hold, "ZZ");
-
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I06", 15, 15);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I07", 15, 15);
-		EDI_CreateElementType(s, EDI_DATA_DATE, "I08", 6, 6);
-		EDI_CreateElementType(s, EDI_DATA_TIME, "I09", 4, 4);
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I65", 1, 1);
-
-		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I11", 5, 5);
-		EDI_AddElementValue(hold, "00200");
-		EDI_AddElementValue(hold, "00201");
-		EDI_AddElementValue(hold, "00204");
-		EDI_AddElementValue(hold, "00300");
-		EDI_AddElementValue(hold, "00301");
-		EDI_AddElementValue(hold, "00302");
-		EDI_AddElementValue(hold, "00303");
-		EDI_AddElementValue(hold, "00304");
-		EDI_AddElementValue(hold, "00305");
-		EDI_AddElementValue(hold, "00306");
-		EDI_AddElementValue(hold, "00307");
-		EDI_AddElementValue(hold, "00400");
-		EDI_AddElementValue(hold, "00401");
-		EDI_AddElementValue(hold, "00402");
-		EDI_AddElementValue(hold, "00403");
-		EDI_AddElementValue(hold, "00404");
-		EDI_AddElementValue(hold, "00405");
-		EDI_AddElementValue(hold, "00406");
-		EDI_AddElementValue(hold, "00500");
-		EDI_AddElementValue(hold, "00501");
-		EDI_AddElementValue(hold, "00502");
-		EDI_AddElementValue(hold, "00503");
-
-		EDI_CreateElementType(s, EDI_DATA_INTEGER, "I12", 9, 9);
-
-		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I13", 1, 1);
-		EDI_AddElementValue(hold, "0");
-		EDI_AddElementValue(hold, "1");
-
-		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I14", 1, 1);
-		EDI_AddElementValue(hold, "I");
-		EDI_AddElementValue(hold, "P");
-		EDI_AddElementValue(hold, "T");
-
-		EDI_CreateElementType(s, EDI_DATA_STRING, "I15", 1, 1);
-		EDI_CreateElementType(s, EDI_DATA_INTEGER, "I16", 1, 5);
-	
-		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ISA");
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I01"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I02"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I03"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I04"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I05"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I06"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I05"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I07"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I08"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I09"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I65"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I11"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I12"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I13"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I14"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I15"), 1, 1);
-		EDI_StoreComplexNode(s, hold);
-		
-		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "IEA");
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I16"), 1, 1);
-		EDI_AppendType(hold, EDI_GetElementByID(s, "I12"), 1, 1);
-		EDI_StoreComplexNode(s, hold);
-
-		hold = EDI_CreateComplexType(s, EDITYPE_TRANSACTION, "ANSI X12 Interchange");
-		EDI_AppendType(hold, EDI_GetComplexNodeByID(s, "ISA"), 1, 1);
-		EDI_AppendType(hold, EDI_GetComplexNodeByID(s, "IEA"), 1, 1);
-		EDI_StoreComplexNode(s, hold);
-		
-		EDI_SetSegmentErrorHandler(s, &handleX12SegmentError);
-		EDI_SetElementErrorHandler(s, &handleX12ElementError);
-
-	}
-	return s;
 }
 /******************************************************************************/
 void X12_ParserDestroy(EDI_Parser parser)
@@ -720,7 +575,6 @@ void X12_ParserDestroy(EDI_Parser parser)
 	if(X12_PARSER->savedTag){
 		free(X12_PARSER->savedTag);
 	}
-	EDI_SchemaFree(X12_PARSER->x12Schema);
 	FREE(parser, X12_PARSER);
 	EDI_PARSER->child = NULL;
 }

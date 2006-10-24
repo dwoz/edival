@@ -76,7 +76,7 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_SchemaNode  node ,
 	if(node->type != EDITYPE_ELEMENT){
 		error = VAL_UNKNOWN_ELEMENT;
 	} else if(element){
-		error = EDI_CheckElementConstraints(element, value, strlen(value));
+		error = EDI_CheckElementConstraints(element, value, strlen(value), NULL);
 		if(!error || error == VAL_CODE_ERROR){
 			if(!element->values){
 				element->values = create_hashtable(20);
@@ -91,7 +91,8 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_SchemaNode  node ,
 /******************************************************************************/
 enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *element,
                                                             const char     *value  ,
-                                                            int             length )
+                                                            int             length ,
+                                                            EDI_DataElement results)
 {
 	const char       *check    = NULL;
 	char             *invalid  = NULL;
@@ -132,6 +133,10 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 				if(value[0] == '\0' || *invalid != '\0'){
 					return VAL_CHAR_ERROR;
 				}
+				if(results){
+					results->type = EDI_DATA_INTEGER;
+					results->data.integer = llvalue;
+				}
 				break;
 			case EDI_DATA_DECIMAL:
 				if(value[0] == '+' || value[0] == '-'){
@@ -156,6 +161,10 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 				ldvalue = strtold(value, &invalid);
 				if(value == invalid || *invalid != '\0'){
 					return VAL_CHAR_ERROR;
+				}
+				if(results){
+					results->type = EDI_DATA_DECIMAL;
+					results->data.decimal = ldvalue;
 				}
 				break;
 			case EDI_DATA_DATE:
@@ -224,8 +233,11 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 				if(value[0] == '\0' || *invalid != '\0'){
 					return VAL_CHAR_ERROR;
 				}
-				/*schema->parser->binaryElementSize = llvalue;*/
 				element->header.schema->parser->binaryElementSize = llvalue;
+				if(results){
+					results->type = EDI_DATA_INTEGER;
+					results->data.integer = llvalue;
+				}
 				break;
 			case EDI_DATA_BINARY:
 				break;

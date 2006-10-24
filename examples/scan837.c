@@ -37,28 +37,35 @@ char curr_seg[4];
 int  curr_e = 0;
 int  curr_c = 0;
 int  is_comp = 0;
+int  type_ok = 0;
 
 void handleSegmentError(void *myData, const char *tag, enum EDI_SegmentValidationError err)
 {
-	if(!(!strcmp(tag, "GS") && err == SEGERR_UNDEFINED) &&
-	   !(!strcmp(tag, "GE") && err == SEGERR_UNDEFINED)){
-		fprintf(stderr, "*~*~* Segment error %d on %s\n", err, tag);
-	}
+	fprintf(stderr, "*~*~* Segment error %d on %s\n", err, tag);
 }
 
 void handleElementError(void *myData, int element, int component, enum EDI_ElementValidationError err)
 {
-	//fprintf(stderr, "\nElement error %d on element %2.2d-%d\n", err, element, component);
+	if(component){
+		fprintf(stderr, "\n\n *** Element error %d on element %s%2.2d-%d ***\n\n", err, curr_seg, element, component);
+	} else {
+		fprintf(stderr, "\n\n *** Element error %d on element %s%2.2d ***\n\n", err, curr_seg, element);
+	}
 }
 
 void handleLoopStart(void *myData, const char *loopID)
 {
-	//fprintf(stderr, "%s<%s>\n", prefix, loopID);
+	fprintf(stderr, "%s<%s>\n", prefix, loopID);
 	depth++;
 	prefix[0] = '\0';
 	for(int i = 0; i < depth; i++){
-		strcat(prefix, " ");
+		strcat(prefix, "   ");
 	}
+	if(strcmp("group", loopID) == 0){
+		group_start = 1;
+		counter = 0;
+		type_ok = 0;
+	}	
 	return;
 }
 
@@ -67,12 +74,462 @@ void handleLoopEnd(void *myData, const char *loopID)
 	depth--;
 	prefix[0] = '\0';
 	for(int i = 0; i < depth; i++){
-		strcat(prefix, " ");
+		strcat(prefix, "   ");
 	}
-	//fprintf(stderr, "%s</%s>\n", prefix, loopID);
+	fprintf(stderr, "%s</%s>\n", prefix, loopID);
 	return;
 }
 
+void load_basic_standards(EDI_Parser p)
+{
+
+	EDI_Schema s = NULL;
+	EDI_SchemaNode parent = NULL;
+	EDI_SchemaNode child  = NULL;
+
+	s = EDI_GetSchema(p);
+	if(s && strcmp(EDI_GetSchemaId(s), "Generic ANSI X12 Schema") != 0){
+		s = EDI_RemoveSchema(p);
+		EDI_SchemaFree(s);
+	}
+	if(!s){
+		s = EDI_SchemaCreate(EDI_ANSI_X12);
+		EDI_SetSchemaId(s, "Generic ANSI X12 Schema");
+		EDI_SetSchema(p, s);
+
+		EDI_SchemaNode hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I01", 2, 2);
+		EDI_AddElementValue(hold, "00");
+		EDI_AddElementValue(hold, "01");
+		EDI_AddElementValue(hold, "02");
+		EDI_AddElementValue(hold, "03");
+		EDI_AddElementValue(hold, "04");
+		EDI_AddElementValue(hold, "05");
+		EDI_AddElementValue(hold, "06");
+		
+		EDI_CreateElementType(s, EDI_DATA_STRING, "I02", 10, 10);
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I03", 2, 2);
+		EDI_AddElementValue(hold, "00");
+		EDI_AddElementValue(hold, "01");
+
+		EDI_CreateElementType(s, EDI_DATA_STRING, "I04", 10, 10);
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I05", 2, 2);
+		EDI_AddElementValue(hold, "01");
+		EDI_AddElementValue(hold, "02");
+		EDI_AddElementValue(hold, "03");
+		EDI_AddElementValue(hold, "04");
+		EDI_AddElementValue(hold, "07");
+		EDI_AddElementValue(hold, "08");
+		EDI_AddElementValue(hold, "09");
+		EDI_AddElementValue(hold, "10");
+		EDI_AddElementValue(hold, "11");
+		EDI_AddElementValue(hold, "12");
+		EDI_AddElementValue(hold, "13");
+		EDI_AddElementValue(hold, "14");
+		EDI_AddElementValue(hold, "15");
+		EDI_AddElementValue(hold, "16");
+		EDI_AddElementValue(hold, "17");
+		EDI_AddElementValue(hold, "18");
+		EDI_AddElementValue(hold, "19");
+		EDI_AddElementValue(hold, "20");
+		EDI_AddElementValue(hold, "21");
+		EDI_AddElementValue(hold, "22");
+		EDI_AddElementValue(hold, "23");
+		EDI_AddElementValue(hold, "24");
+		EDI_AddElementValue(hold, "25");
+		EDI_AddElementValue(hold, "26");
+		EDI_AddElementValue(hold, "27");
+		EDI_AddElementValue(hold, "28");
+		EDI_AddElementValue(hold, "29");
+		EDI_AddElementValue(hold, "30");
+		EDI_AddElementValue(hold, "31");
+		EDI_AddElementValue(hold, "32");
+		EDI_AddElementValue(hold, "33");
+		EDI_AddElementValue(hold, "34");
+		EDI_AddElementValue(hold, "35");
+		EDI_AddElementValue(hold, "36");
+		EDI_AddElementValue(hold, "37");
+		EDI_AddElementValue(hold, "38");
+		EDI_AddElementValue(hold, "AM");
+		EDI_AddElementValue(hold, "NR");
+		EDI_AddElementValue(hold, "SA");
+		EDI_AddElementValue(hold, "SN");
+		EDI_AddElementValue(hold, "ZZ");
+
+		EDI_CreateElementType(s, EDI_DATA_STRING, "I06", 15, 15);
+		EDI_CreateElementType(s, EDI_DATA_STRING, "I07", 15, 15);
+		EDI_CreateElementType(s, EDI_DATA_DATE, "I08", 6, 6);
+		EDI_CreateElementType(s, EDI_DATA_TIME, "I09", 4, 4);
+		EDI_CreateElementType(s, EDI_DATA_STRING, "I65", 1, 1);
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I11", 5, 5);
+		EDI_AddElementValue(hold, "00200");
+		EDI_AddElementValue(hold, "00201");
+		EDI_AddElementValue(hold, "00204");
+		EDI_AddElementValue(hold, "00300");
+		EDI_AddElementValue(hold, "00301");
+		EDI_AddElementValue(hold, "00302");
+		EDI_AddElementValue(hold, "00303");
+		EDI_AddElementValue(hold, "00304");
+		EDI_AddElementValue(hold, "00305");
+		EDI_AddElementValue(hold, "00306");
+		EDI_AddElementValue(hold, "00307");
+		EDI_AddElementValue(hold, "00400");
+		EDI_AddElementValue(hold, "00401");
+		EDI_AddElementValue(hold, "00402");
+		EDI_AddElementValue(hold, "00403");
+		EDI_AddElementValue(hold, "00404");
+		EDI_AddElementValue(hold, "00405");
+		EDI_AddElementValue(hold, "00406");
+		EDI_AddElementValue(hold, "00500");
+		EDI_AddElementValue(hold, "00501");
+		EDI_AddElementValue(hold, "00502");
+		EDI_AddElementValue(hold, "00503");
+
+		EDI_CreateElementType(s, EDI_DATA_INTEGER, "I12", 9, 9);
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I13", 1, 1);
+		EDI_AddElementValue(hold, "0");
+		EDI_AddElementValue(hold, "1");
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "I14", 1, 1);
+		EDI_AddElementValue(hold, "I");
+		EDI_AddElementValue(hold, "P");
+		EDI_AddElementValue(hold, "T");
+
+		EDI_CreateElementType(s, EDI_DATA_STRING, "I15", 1, 1);
+		EDI_CreateElementType(s, EDI_DATA_INTEGER, "I16", 1, 5);
+		EDI_CreateElementType(s, EDI_DATA_INTEGER, "28", 1, 9);
+		EDI_CreateElementType(s, EDI_DATA_INTEGER, "97", 1, 6);
+		EDI_CreateElementType(s, EDI_DATA_STRING, "124", 2, 15);
+		EDI_CreateElementType(s, EDI_DATA_STRING, "142", 2, 15);
+		EDI_CreateElementType(s, EDI_DATA_TIME, "337", 4, 8);
+		EDI_CreateElementType(s, EDI_DATA_DATE, "373", 8, 8);
+		EDI_CreateElementType(s, EDI_DATA_STRING, "455", 1, 2);
+
+		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "479", 2, 2);
+		EDI_AddElementValue(hold, "AA");
+		EDI_AddElementValue(hold, "AB");
+		EDI_AddElementValue(hold, "AC");
+		EDI_AddElementValue(hold, "AD");
+		EDI_AddElementValue(hold, "AE");
+		EDI_AddElementValue(hold, "AF");
+		EDI_AddElementValue(hold, "AG");
+		EDI_AddElementValue(hold, "AH");
+		EDI_AddElementValue(hold, "AI");
+		EDI_AddElementValue(hold, "AK");
+		EDI_AddElementValue(hold, "AL");
+		EDI_AddElementValue(hold, "AM");
+		EDI_AddElementValue(hold, "AN");
+		EDI_AddElementValue(hold, "AO");
+		EDI_AddElementValue(hold, "AP");
+		EDI_AddElementValue(hold, "AQ");
+		EDI_AddElementValue(hold, "AR");
+		EDI_AddElementValue(hold, "AS");
+		EDI_AddElementValue(hold, "AT");
+		EDI_AddElementValue(hold, "AU");
+		EDI_AddElementValue(hold, "AV");
+		EDI_AddElementValue(hold, "AW");
+		EDI_AddElementValue(hold, "AX");
+		EDI_AddElementValue(hold, "AY");
+		EDI_AddElementValue(hold, "AZ");
+		EDI_AddElementValue(hold, "BA");
+		EDI_AddElementValue(hold, "BB");
+		EDI_AddElementValue(hold, "BC");
+		EDI_AddElementValue(hold, "BD");
+		EDI_AddElementValue(hold, "BE");
+		EDI_AddElementValue(hold, "BF");
+		EDI_AddElementValue(hold, "BL");
+		EDI_AddElementValue(hold, "BS");
+		EDI_AddElementValue(hold, "CA");
+		EDI_AddElementValue(hold, "CB");
+		EDI_AddElementValue(hold, "CC");
+		EDI_AddElementValue(hold, "CD");
+		EDI_AddElementValue(hold, "CE");
+		EDI_AddElementValue(hold, "CF");
+		EDI_AddElementValue(hold, "CH");
+		EDI_AddElementValue(hold, "CI");
+		EDI_AddElementValue(hold, "CJ");
+		EDI_AddElementValue(hold, "CK");
+		EDI_AddElementValue(hold, "CL");
+		EDI_AddElementValue(hold, "CM");
+		EDI_AddElementValue(hold, "CN");
+		EDI_AddElementValue(hold, "CO");
+		EDI_AddElementValue(hold, "CP");
+		EDI_AddElementValue(hold, "CQ");
+		EDI_AddElementValue(hold, "CR");
+		EDI_AddElementValue(hold, "CS");
+		EDI_AddElementValue(hold, "CT");
+		EDI_AddElementValue(hold, "CU");
+		EDI_AddElementValue(hold, "CV");
+		EDI_AddElementValue(hold, "CW");
+		EDI_AddElementValue(hold, "DA");
+		EDI_AddElementValue(hold, "DD");
+		EDI_AddElementValue(hold, "DF");
+		EDI_AddElementValue(hold, "DI");
+		EDI_AddElementValue(hold, "DM");
+		EDI_AddElementValue(hold, "DS");
+		EDI_AddElementValue(hold, "DX");
+		EDI_AddElementValue(hold, "D3");
+		EDI_AddElementValue(hold, "D4");
+		EDI_AddElementValue(hold, "D5");
+		EDI_AddElementValue(hold, "EC");
+		EDI_AddElementValue(hold, "ED");
+		EDI_AddElementValue(hold, "EI");
+		EDI_AddElementValue(hold, "EN");
+		EDI_AddElementValue(hold, "EP");
+		EDI_AddElementValue(hold, "ER");
+		EDI_AddElementValue(hold, "ES");
+		EDI_AddElementValue(hold, "EV");
+		EDI_AddElementValue(hold, "EX");
+		EDI_AddElementValue(hold, "FA");
+		EDI_AddElementValue(hold, "FB");
+		EDI_AddElementValue(hold, "FC");
+		EDI_AddElementValue(hold, "FG");
+		EDI_AddElementValue(hold, "FR");
+		EDI_AddElementValue(hold, "FT");
+		EDI_AddElementValue(hold, "GC");
+		EDI_AddElementValue(hold, "GE");
+		EDI_AddElementValue(hold, "GF");
+		EDI_AddElementValue(hold, "GL");
+		EDI_AddElementValue(hold, "GP");
+		EDI_AddElementValue(hold, "GR");
+		EDI_AddElementValue(hold, "GT");
+		EDI_AddElementValue(hold, "HB");
+		EDI_AddElementValue(hold, "HC");
+		EDI_AddElementValue(hold, "HI");
+		EDI_AddElementValue(hold, "HN");
+		EDI_AddElementValue(hold, "HP");
+		EDI_AddElementValue(hold, "HR");
+		EDI_AddElementValue(hold, "HS");
+		EDI_AddElementValue(hold, "HU");
+		EDI_AddElementValue(hold, "HV");
+		EDI_AddElementValue(hold, "IA");
+		EDI_AddElementValue(hold, "IB");
+		EDI_AddElementValue(hold, "IC");
+		EDI_AddElementValue(hold, "ID");
+		EDI_AddElementValue(hold, "IE");
+		EDI_AddElementValue(hold, "IF");
+		EDI_AddElementValue(hold, "IG");
+		EDI_AddElementValue(hold, "IH");
+		EDI_AddElementValue(hold, "IJ");
+		EDI_AddElementValue(hold, "IM");
+		EDI_AddElementValue(hold, "IN");
+		EDI_AddElementValue(hold, "IO");
+		EDI_AddElementValue(hold, "IR");
+		EDI_AddElementValue(hold, "IS");
+		EDI_AddElementValue(hold, "JB");
+		EDI_AddElementValue(hold, "KM");
+		EDI_AddElementValue(hold, "LA");
+		EDI_AddElementValue(hold, "LB");
+		EDI_AddElementValue(hold, "LI");
+		EDI_AddElementValue(hold, "LN");
+		EDI_AddElementValue(hold, "LR");
+		EDI_AddElementValue(hold, "LS");
+		EDI_AddElementValue(hold, "LT");
+		EDI_AddElementValue(hold, "MA");
+		EDI_AddElementValue(hold, "MC");
+		EDI_AddElementValue(hold, "MD");
+		EDI_AddElementValue(hold, "ME");
+		EDI_AddElementValue(hold, "MF");
+		EDI_AddElementValue(hold, "MG");
+		EDI_AddElementValue(hold, "MH");
+		EDI_AddElementValue(hold, "MI");
+		EDI_AddElementValue(hold, "MJ");
+		EDI_AddElementValue(hold, "MK");
+		EDI_AddElementValue(hold, "MM");
+		EDI_AddElementValue(hold, "MN");
+		EDI_AddElementValue(hold, "MO");
+		EDI_AddElementValue(hold, "MP");
+		EDI_AddElementValue(hold, "MQ");
+		EDI_AddElementValue(hold, "MR");
+		EDI_AddElementValue(hold, "MS");
+		EDI_AddElementValue(hold, "MT");
+		EDI_AddElementValue(hold, "MV");
+		EDI_AddElementValue(hold, "MW");
+		EDI_AddElementValue(hold, "MX");
+		EDI_AddElementValue(hold, "MY");
+		EDI_AddElementValue(hold, "MZ");
+		EDI_AddElementValue(hold, "NC");
+		EDI_AddElementValue(hold, "NL");
+		EDI_AddElementValue(hold, "NP");
+		EDI_AddElementValue(hold, "NR");
+		EDI_AddElementValue(hold, "NT");
+		EDI_AddElementValue(hold, "OC");
+		EDI_AddElementValue(hold, "OG");
+		EDI_AddElementValue(hold, "OR");
+		EDI_AddElementValue(hold, "OW");
+		EDI_AddElementValue(hold, "PA");
+		EDI_AddElementValue(hold, "PB");
+		EDI_AddElementValue(hold, "PC");
+		EDI_AddElementValue(hold, "PD");
+		EDI_AddElementValue(hold, "PE");
+		EDI_AddElementValue(hold, "PF");
+		EDI_AddElementValue(hold, "PG");
+		EDI_AddElementValue(hold, "PH");
+		EDI_AddElementValue(hold, "PI");
+		EDI_AddElementValue(hold, "PJ");
+		EDI_AddElementValue(hold, "PK");
+		EDI_AddElementValue(hold, "PL");
+		EDI_AddElementValue(hold, "PN");
+		EDI_AddElementValue(hold, "PO");
+		EDI_AddElementValue(hold, "PQ");
+		EDI_AddElementValue(hold, "PR");
+		EDI_AddElementValue(hold, "PS");
+		EDI_AddElementValue(hold, "PT");
+		EDI_AddElementValue(hold, "PU");
+		EDI_AddElementValue(hold, "PV");
+		EDI_AddElementValue(hold, "PW");
+		EDI_AddElementValue(hold, "PY");
+		EDI_AddElementValue(hold, "QG");
+		EDI_AddElementValue(hold, "QM");
+		EDI_AddElementValue(hold, "QO");
+		EDI_AddElementValue(hold, "RA");
+		EDI_AddElementValue(hold, "RB");
+		EDI_AddElementValue(hold, "RC");
+		EDI_AddElementValue(hold, "RD");
+		EDI_AddElementValue(hold, "RE");
+		EDI_AddElementValue(hold, "RF");
+		EDI_AddElementValue(hold, "RG");
+		EDI_AddElementValue(hold, "RH");
+		EDI_AddElementValue(hold, "RI");
+		EDI_AddElementValue(hold, "RJ");
+		EDI_AddElementValue(hold, "RK");
+		EDI_AddElementValue(hold, "RL");
+		EDI_AddElementValue(hold, "RM");
+		EDI_AddElementValue(hold, "RN");
+		EDI_AddElementValue(hold, "RO");
+		EDI_AddElementValue(hold, "RP");
+		EDI_AddElementValue(hold, "RQ");
+		EDI_AddElementValue(hold, "RR");
+		EDI_AddElementValue(hold, "RS");
+		EDI_AddElementValue(hold, "RT");
+		EDI_AddElementValue(hold, "RU");
+		EDI_AddElementValue(hold, "RV");
+		EDI_AddElementValue(hold, "RW");
+		EDI_AddElementValue(hold, "RX");
+		EDI_AddElementValue(hold, "RY");
+		EDI_AddElementValue(hold, "RZ");
+		EDI_AddElementValue(hold, "SA");
+		EDI_AddElementValue(hold, "SB");
+		EDI_AddElementValue(hold, "SC");
+		EDI_AddElementValue(hold, "SD");
+		EDI_AddElementValue(hold, "SE");
+		EDI_AddElementValue(hold, "SH");
+		EDI_AddElementValue(hold, "SI");
+		EDI_AddElementValue(hold, "SJ");
+		EDI_AddElementValue(hold, "SL");
+		EDI_AddElementValue(hold, "SM");
+		EDI_AddElementValue(hold, "SN");
+		EDI_AddElementValue(hold, "SO");
+		EDI_AddElementValue(hold, "SP");
+		EDI_AddElementValue(hold, "SQ");
+		EDI_AddElementValue(hold, "SR");
+		EDI_AddElementValue(hold, "SS");
+		EDI_AddElementValue(hold, "ST");
+		EDI_AddElementValue(hold, "SU");
+		EDI_AddElementValue(hold, "SV");
+		EDI_AddElementValue(hold, "SW");
+		EDI_AddElementValue(hold, "TA");
+		EDI_AddElementValue(hold, "TB");
+		EDI_AddElementValue(hold, "TD");
+		EDI_AddElementValue(hold, "TE");
+		EDI_AddElementValue(hold, "TF");
+		EDI_AddElementValue(hold, "TI");
+		EDI_AddElementValue(hold, "TJ");
+		EDI_AddElementValue(hold, "TM");
+		EDI_AddElementValue(hold, "TN");
+		EDI_AddElementValue(hold, "TO");
+		EDI_AddElementValue(hold, "TP");
+		EDI_AddElementValue(hold, "TR");
+		EDI_AddElementValue(hold, "TS");
+		EDI_AddElementValue(hold, "TT");
+		EDI_AddElementValue(hold, "TU");
+		EDI_AddElementValue(hold, "TX");
+		EDI_AddElementValue(hold, "UA");
+		EDI_AddElementValue(hold, "UB");
+		EDI_AddElementValue(hold, "UC");
+		EDI_AddElementValue(hold, "UD");
+		EDI_AddElementValue(hold, "UI");
+		EDI_AddElementValue(hold, "UP");
+		EDI_AddElementValue(hold, "UW");
+		EDI_AddElementValue(hold, "VA");
+		EDI_AddElementValue(hold, "VB");
+		EDI_AddElementValue(hold, "VC");
+		EDI_AddElementValue(hold, "VD");
+		EDI_AddElementValue(hold, "VE");
+		EDI_AddElementValue(hold, "VH");
+		EDI_AddElementValue(hold, "VI");
+		EDI_AddElementValue(hold, "VS");
+		EDI_AddElementValue(hold, "WA");
+		EDI_AddElementValue(hold, "WB");
+		EDI_AddElementValue(hold, "WG");
+		EDI_AddElementValue(hold, "WI");
+		EDI_AddElementValue(hold, "WL");
+		EDI_AddElementValue(hold, "WR");
+		EDI_AddElementValue(hold, "WT");
+		EDI_CreateElementType(s, EDI_DATA_STRING, "480", 1, 12);
+
+		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ISA");
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I01"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I02"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I03"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I04"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I05"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I06"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I05"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I07"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I08"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I09"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I65"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I11"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I12"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I13"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I14"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I15"), 1, 1);
+		EDI_StoreComplexNode(s, hold);
+		
+		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "IEA");
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I16"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "I12"), 1, 1);
+		EDI_StoreComplexNode(s, hold);
+
+		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "GS");
+		EDI_AppendType(hold, EDI_GetElementByID(s, "479"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "142"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "124"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "373"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "337"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "28"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "455"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "480"), 1, 1);
+		EDI_StoreComplexNode(s, hold);
+
+		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "GE");
+		EDI_AppendType(hold, EDI_GetElementByID(s, "28"), 1, 1);
+		EDI_AppendType(hold, EDI_GetElementByID(s, "97"), 1, 1);
+		EDI_StoreComplexNode(s, hold);
+
+		hold = EDI_CreateComplexType(s, EDITYPE_DOCUMENT, "interchange");
+		EDI_AppendType(hold, EDI_GetComplexNodeByID(s, "ISA"), 1, 1);
+
+		EDI_SchemaNode group = EDI_CreateComplexType(s, EDITYPE_LOOP, "group");
+		EDI_AppendType(group, EDI_GetComplexNodeByID(s, "GS"), 1, 1);
+		EDI_AppendType(group, EDI_GetComplexNodeByID(s, "GE"), 1, 1);
+		EDI_StoreComplexNode(s, group);
+
+		EDI_AppendType(hold, group, 0, 999999999);
+		EDI_AppendType(hold, EDI_GetComplexNodeByID(s, "IEA"), 1, 1);
+		EDI_StoreComplexNode(s, hold);
+		
+		EDI_SetDocumentRoot(s, EDI_GetComplexNodeByID(s, "interchange"));
+		EDI_SetSegmentErrorHandler(s, &handleSegmentError);
+		EDI_SetElementErrorHandler(s, &handleElementError);
+		EDI_SetLoopStartHandler(s, &handleLoopStart);
+		EDI_SetLoopEndHandler(s, &handleLoopEnd);
+	}
+}
 
 void load_standard(EDI_Parser p)
 {
@@ -81,14 +538,10 @@ void load_standard(EDI_Parser p)
 	EDI_SchemaNode child  = NULL;
 	
 	s = EDI_GetSchema(p);
-	if(s && strcmp(EDI_GetSchemaId(s), "Health Care Claim: HC/837") != 0){
-		s = EDI_RemoveSchema(p);
-		EDI_SchemaFree(s);
-	}
-	if(!s){
-		s = EDI_SchemaCreate();
+	if(!s || (s && strcmp(EDI_GetSchemaId(s), "Health Care Claim: HC/837") != 0)){
+		load_basic_standards(p);
+		s = EDI_GetSchema(p);
 		EDI_SetSchemaId(s, "Health Care Claim: HC/837");
-		EDI_SetSchema(p, s);
 
 		EDI_CreateElementType(s, EDI_DATA_STRING, "143", 3, 3);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "329", 4, 9);
@@ -1105,7 +1558,7 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(parent, EDI_GetElementByID(s, "329"), 1, 1);
 		EDI_StoreComplexNode(s, parent);
 
-		EDI_SchemaNode loop1 = EDI_CreateComplexType(s, EDITYPE_TRANSACTION, "ANSI837");
+		EDI_SchemaNode loop1 = EDI_CreateComplexType(s, EDITYPE_LOOP, "transaction");
 		EDI_AppendType(loop1, EDI_GetComplexNodeByID(s, "ST"), 1, 1);
 		EDI_AppendType(loop1, EDI_GetComplexNodeByID(s, "BHT"), 1, 1);
 		EDI_AppendType(loop1, EDI_GetComplexNodeByID(s, "REF"), 0, 3);
@@ -1264,22 +1717,14 @@ void load_standard(EDI_Parser p)
 		EDI_AppendType(loop1, loop2000, 1, 999999);
 		EDI_AppendType(loop1, EDI_GetComplexNodeByID(s, "SE"), 1, 1);
 		
-		EDI_SetSegmentErrorHandler(s, &handleSegmentError);
-		EDI_SetElementErrorHandler(s, &handleElementError);
-		EDI_SetLoopStartHandler(s, &handleLoopStart);
-		EDI_SetLoopEndHandler(s, &handleLoopEnd);
+		EDI_InsertType(EDI_GetComplexNodeByID(s, "group"), loop1, 2, 0, 999999999);		
 	}
 	return;
 }
 
 void handleSegmentStart(void *myData, const char *tag)
 {
-	//fprintf(stderr, "%sSeg: %3s ->", prefix, tag);
-	//fprintf(stderr, "%s<%s>", prefix, tag);
-	if(strcmp("GS", tag) == 0){
-		group_start = 1;
-		counter = 0;
-	}
+	fprintf(stderr, "%sSeg: %3s ->", prefix, tag);
 	strcpy(curr_seg, tag);
 	curr_e = 0;
 	return;
@@ -1287,7 +1732,7 @@ void handleSegmentStart(void *myData, const char *tag)
 
 void handleSegmentEnd(void *myData, const char *tag)
 {
-    //fprintf(stderr, "</%s>\n", tag);
+    fprintf(stderr, " <- End %s\n", tag);
     return;
 }
 
@@ -1296,40 +1741,62 @@ void handleCompositeStart(void *myData)
 	curr_e++;
 	curr_c = 0;
 	is_comp = 1;
-	//fprintf(stderr, "<%s%2.2d>", curr_seg, curr_e);
-	//fprintf(stderr, "{");
+	fprintf(stderr, "{");
 	return;
 }
 
 void handleCompositeEnd(void *myData)
 {
-    //fprintf(stderr, "}");
-    //fprintf(stderr, "</%s%2.2d>", curr_seg, curr_e);
+    fprintf(stderr, "}");
     is_comp = 0;
     return;
 }
 
-void handleElement(void *myData, const char *val)
+void handleElement(void *myData, EDI_DataElement element)
 {
-	//fprintf(stderr, "[%s]", val);
-	if(is_comp){
-		curr_c++;
-		//fprintf(stderr, "<%s%2.2d-%d>%s</%s%2.2d-%d>", curr_seg, curr_e, curr_c, val, curr_seg, curr_e, curr_c);
-	} else {
-		curr_e++;
-		//fprintf(stderr, "<%s%2.2d>%s</%s%2.2d>", curr_seg, curr_e, val, curr_seg, curr_e);
-	}
-	if(group_start){
-		counter++;
-		if(counter == 1){
-			if(strcmp("HC", val) == 0){
-				load_standard((EDI_Parser)myData);
+	const char *string;
+
+	counter++;
+	switch(element->type){
+		case EDI_DATA_INTEGER:
+		case EDI_DATA_BINARY_SIZE:
+			fprintf(stderr, "[%d]", element->data.integer);
+			break;
+		case EDI_DATA_DECIMAL:
+			fprintf(stderr, "[%ld]", element->data.decimal);
+			break;
+		default:
+			fprintf(stderr, "[%s]", element->data.string);
+			if(is_comp){
+				curr_c++;
+				/*
+				fprintf(stderr, "<%s%2.2d-%d>%s</%s%2.2d-%d>", curr_seg, curr_e, curr_c, element->data.string, curr_seg, curr_e, curr_c);
+				*/
 			} else {
-				fprintf(stderr, "*** No transaction-level validation will be performed on this file.\n");
+				curr_e++;
+				/*
+				fprintf(stderr, "<%s%2.2d>%s</%s%2.2d>", curr_seg, curr_e, element->data.string, curr_seg, curr_e);
+				*/
 			}
-		} else {
-			group_start = 0;
-		}
+			if(group_start){
+				if(counter == 1){
+					if(strcmp("HC", element->data.string) == 0){
+						type_ok = 1;
+					} else {
+						fprintf(stderr, "*** Type not 'FA': No transaction-level validation will be performed on this functional group.\n");
+					}
+				} else if(counter == 8){
+					if(type_ok){
+						if((strncmp("004010", element->data.string, 6) == 0)){
+							load_standard((EDI_Parser)myData);
+						} else {
+							fprintf(stderr, "*** Version not '004010': No transaction-level validation will be performed on this functional group.\n");
+						}
+					}
+					group_start = 0;
+				}
+			}
+			break;
 	}
 	return;
 }
@@ -1383,11 +1850,13 @@ int main(int argc, char **argv)
 	EDI_SetElementHandler(p, handleElement);
 	EDI_SetNonEDIDataHandler(p, handleJunk);
 	EDI_SetUserData(p, p);
-        
+	load_basic_standards(p);
+
 	buff = EDI_GetBuffer(p, BUFF_SIZE);
 	length = read(input, buff, BUFF_SIZE);
 	while(length > 0){
-		status = EDI_ParseBuffer(p, length);
+		EDI_Bool final = (length < BUFF_SIZE) ? EDI_TRUE : EDI_FALSE;
+		status = EDI_ParseBuffer(p, length, final);
 		if(status != EDI_STATUS_OK){
 			fprintf(stdout, "Error: %d\n", EDI_GetErrorCode(p));
 		}

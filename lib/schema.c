@@ -29,32 +29,38 @@
                                    (schema->stack[schema->depth - 1])->node \
                                 ) : schema->root)
 /******************************************************************************/
-static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *, const char *);
+static EDI_Schema schemaCreate(
+	enum EDI_DocumentType      ,
+	const char *               , 
+	EDI_Memory_Handling_Suite *);
 static void schemaInit(EDI_Schema);
 /******************************************************************************/
-EDI_Schema EDI_SchemaCreate(void)
+EDI_Schema EDI_SchemaCreate(enum EDI_DocumentType type)
 {
-	return schemaCreate(NULL, NULL);	
+	return schemaCreate(type, NULL, NULL);	
 }
 /******************************************************************************/
-EDI_Schema EDI_SchemaCreateNamed(const char *name)
+EDI_Schema EDI_SchemaCreateNamed(enum EDI_DocumentType type, const char *name)
 {
-	return schemaCreate(NULL, name);	
+	return schemaCreate(type, name, NULL);	
 }
 /******************************************************************************/
-EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *memsuite)
+EDI_Schema EDI_SchemaCreate_MM(enum EDI_DocumentType type         , 
+                               EDI_Memory_Handling_Suite *memsuite)
 {
-	return schemaCreate(memsuite, NULL);
+	return schemaCreate(type, NULL, memsuite);
 }
 /******************************************************************************/
-EDI_Schema EDI_SchemaCreateNamed_MM(EDI_Memory_Handling_Suite *memsuite,
-                                    const char                *name    )
+EDI_Schema EDI_SchemaCreateNamed_MM(enum EDI_DocumentType      type    ,
+                                    const char                *name    ,
+                                    EDI_Memory_Handling_Suite *memsuite)
 {
-	return schemaCreate(memsuite, name);
+	return schemaCreate(type, name, memsuite);
 }
 /******************************************************************************/
-static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite,
-                               const char                *name    )
+static EDI_Schema schemaCreate(enum EDI_DocumentType      type    ,
+                               const char                *name    ,
+                               EDI_Memory_Handling_Suite *memsuite)
 {
 	EDI_Schema schema = NULL;
 	
@@ -87,6 +93,9 @@ static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite,
 		if(name){
 			schema->identifier = EDI_strndup(name, strlen(name), schema->memsuite);
 		}
+		if(type){
+			schema->documentType = type;
+		}
 	}
 	return schema;
 }
@@ -94,6 +103,7 @@ static EDI_Schema schemaCreate(EDI_Memory_Handling_Suite *memsuite,
 static void schemaInit(EDI_Schema schema)
 {
 	schema->identifier       = "";
+	schema->documentType     = EDI_UNKNOWN_DOC;
 	schema->elements         = create_hashtable(20);
 	schema->complexNodes     = create_hashtable(20);
 	schema->root             = NULL;
@@ -105,6 +115,28 @@ static void schemaInit(EDI_Schema schema)
 	schema->loopEndHandler   = NULL;
 	schema->segmentErrorHandler = NULL;
 	schema->elementErrorHandler = NULL;
+}
+/******************************************************************************/
+void EDI_SetDocumentRoot(EDI_Schema            schema,
+                         EDI_SchemaNode        node  )
+{
+	if(node->type == EDITYPE_DOCUMENT){
+		schema->root = (EDI_ComplexType)node;
+		EDI_ChildNode root = MALLOC(schema, sizeof(struct EDI_ChildNodeStruct));
+		root->node = node;
+		root->previousSibling = NULL;
+		root->nextSibling = NULL;
+		root->min_occurs = 0;
+		root->max_occurs = 999999999;
+		root->count = 0;
+		schema->stack[0] = root;
+	}
+	return;
+}
+/******************************************************************************/
+EDI_SchemaNode EDI_GetDocumentRoot(EDI_Schema schema)
+{
+	return &(schema->root->header);
 }
 /******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema schema)
@@ -202,7 +234,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 								SCHEMA_READ(closed - 1)->node->nodeID
 							);
 						}
-					}				
+					}
 					current->count++;
 					if(current->count > current->max_occurs){
 							error = SEGERR_EXCEED_REPEAT;
@@ -213,6 +245,12 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 			} else {
 				EDI_LoopNode loop = (EDI_LoopNode)(current->node);
 				if(string_eq(nodeID, loop->startID)){
+					/* Reset the node usage counts before entering the loop */
+					EDI_ChildNode clear = ((EDI_ComplexType)loop)->firstChild;
+					while(clear){
+						clear->count = 0;
+						clear = clear->nextSibling;
+					}
 					if(schema->depth < startDepth && schema->loopEndHandler){
 						for(int closed = startDepth; closed > schema->depth; closed--){
 							schema->loopEndHandler(
@@ -265,12 +303,10 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 					}
 					if(error) break;
 				} 
-				EDI_ChildNode clear = NULL;
 				if(schema->depth > 0){
 					current = SCHEMA_POP();
-					clear = ((EDI_ComplexType)current->node)->firstChild;
 				} else {
-					current  = schema->root->firstChild;
+					current = schema->root->firstChild;
 					if(!string_eq(nodeID, current->node->nodeID)){
 						/* Unexpected segment... must reset our position! */
 						schema->depth = startDepth;
@@ -282,14 +318,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 						}
 						mCount = 0;
 						break; /* Wasn't found; cut our losses and go back. */
-					} else {
-						clear = current;
 					}
-				}
-				/* Reset the usage of child nodes to 0 since we are moving up a level */
-				while(clear){
-					clear->count = 0;
-					clear = clear->nextSibling;
 				}
 			}
 		}
@@ -309,11 +338,13 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 	return error;
 }
 /******************************************************************************/
-enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema  schema        ,
-                                                    int         elementIndex  , 
-                                                    int        *componentIndex, 
-                                                    const char *value         ,
-                                                    int         length        )
+enum EDI_ElementValidationError EDI_ValidateElement(
+	EDI_Schema                  schema        ,
+   int                         elementIndex  , 
+	int                        *componentIndex, 
+	const char                 *value         ,
+	int                         length        ,
+	EDI_DataElement             results       )
 {
 	int                             index   = 0;
 	EDI_ChildNode                   clear   = NULL;
@@ -330,8 +361,8 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema  schema        ,
 			while(clear){
 				clear->count = 0;
 				clear = clear->nextSibling;
-			}			
-			schema->prevElementIndex = 1;		
+			}
+			schema->prevElementIndex = 1;	
 		} else {
 			error = VAL_INVALID_SEGMENT;
 		}
@@ -377,9 +408,10 @@ enum EDI_ElementValidationError EDI_ValidateElement(EDI_Schema  schema        ,
 			element->count++;
 			if(element->count <= element->max_occurs){
 				error = EDI_CheckElementConstraints(
-					(EDI_SimpleType *)(element->node), 
+					(EDI_SimpleType *)(element->node),
 					value, 
-					length
+					length,
+					results
 				);
 			} else {
 				error = VAL_REPETITION_EXCEEDED;

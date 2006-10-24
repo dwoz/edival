@@ -55,10 +55,10 @@ struct X12_ParserStruct {
 	char                           *savedTag;
 	int                             savedElementPosition;
 	int                             savedComponentPosition;
-	EDI_Schema                      x12Schema;
 	enum X12_ParseError             error;
 	enum EDI_SegmentValidationError segmentError;
 	enum X12_Delimiter              previous;
+	EDI_DataElement                 data;
 };
 typedef struct X12_ParserStruct *X12_Parser;
 

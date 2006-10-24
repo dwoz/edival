@@ -25,7 +25,7 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 {
 	EDI_ComplexType node = NULL;
 	
-	if(type == EDITYPE_LOOP){
+	if(type == EDITYPE_LOOP || type == EDITYPE_DOCUMENT){
 		node = MALLOC(schema, sizeof(struct EDI_LoopNodeStruct));
 	} else {
 		node = MALLOC(schema, sizeof(struct EDI_ComplexTypeStruct));
@@ -43,9 +43,6 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 	node->childCount = 0;
 	node->firstNote  = NULL;
 	node->finalNote  = NULL;
-	if(type == EDITYPE_TRANSACTION){
-		schema->root = node;
-	}
 	return (EDI_SchemaNode)node;
 }
 /******************************************************************************/
@@ -77,7 +74,7 @@ EDI_SchemaNode EDI_GetComplexNodeByID(EDI_Schema      schema,
 EDI_Bool EDI_AddSyntaxNote(EDI_SchemaNode       node    ,
                            enum EDI_SyntaxType  type    ,
                            unsigned int         count   ,
-                           unsigned int        *elements) 
+                           unsigned int        *elements)
 {
 	int             i;
 	unsigned int   *positions;
@@ -151,10 +148,14 @@ EDI_SchemaNode EDI_AppendType(EDI_SchemaNode parent    ,
         return NULL;
     }
     switch(parent->type){
-    	case EDITYPE_TRANSACTION:
+    	case EDITYPE_DOCUMENT:
     		if(new->type != EDITYPE_LOOP && 
     		   new->type != EDITYPE_SEGMENT){
     			return NULL;
+    		}
+    		if(cParent->childCount == 0){
+    			EDI_LoopNode loop = (EDI_LoopNode)parent;
+    			loop->startID = EDI_strdup(new->nodeID);
     		}
     		break;
     	case EDITYPE_LOOP:
@@ -202,8 +203,94 @@ EDI_SchemaNode EDI_AppendType(EDI_SchemaNode parent    ,
 	cParent->childCount++;
 	new->refCount++;
 
-	if(cParent == parent->schema->root){
-		parent->schema->stack[0] = cParent->firstChild;
+	return parent;
+}
+/******************************************************************************/
+EDI_SchemaNode EDI_InsertType(EDI_SchemaNode parent    ,
+                              EDI_SchemaNode child     ,
+                              unsigned int   position  ,
+                              unsigned int   min_occurs,
+                              unsigned int   max_occurs)
+{
+	int index;
+	EDI_ChildNode   childMeta  = NULL;
+	EDI_ChildNode   sibling    = NULL;
+	EDI_ComplexType cParent    = (EDI_ComplexType)parent;
+    
+	if(!parent || !child){
+		return NULL;
+	}
+	switch(parent->type){
+		case EDITYPE_DOCUMENT:
+			if(child->type != EDITYPE_LOOP && 
+    		   child->type != EDITYPE_SEGMENT){
+    			return NULL;
+    		}
+    		if(cParent->childCount == 0){
+    			EDI_LoopNode loop = (EDI_LoopNode)parent;
+    			loop->startID = EDI_strdup(child->nodeID);
+    		}
+    		break;
+    	case EDITYPE_LOOP:
+    		if(child->type != EDITYPE_LOOP && 
+    		   child->type != EDITYPE_SEGMENT){
+    			return NULL;
+    		}
+    		if(cParent->childCount == 0){
+    			EDI_LoopNode loop = (EDI_LoopNode)parent;
+    			loop->startID = EDI_strdup(child->nodeID);
+    		}
+    		break;
+    	case EDITYPE_SEGMENT:
+    		if(child->type != EDITYPE_COMPOSITE && 
+    		   child->type != EDITYPE_ELEMENT){
+    			return NULL;
+    		}
+    		break;
+    	case EDITYPE_COMPOSITE:
+    		if(child->type != EDITYPE_ELEMENT){
+    			return NULL;
+    		}
+    		break;
+    	default:
+    		return NULL;
+    }
+    childMeta = MALLOC(parent->schema, sizeof(struct EDI_ChildNodeStruct));
+    if(!childMeta){
+    	parent->schema->parser->errorCode = EDI_ERROR_NO_MEM;
+    	return NULL;
+    }
+    childMeta->min_occurs = min_occurs;
+    childMeta->max_occurs = max_occurs;
+    childMeta->node       = child;
+    childMeta->count      = 0;
+
+	sibling = cParent->firstChild;
+	for(index = 1; sibling && index < position; index++){
+		sibling = sibling->nextSibling;
+	}
+	if(index == position){
+		if(sibling){
+			if(sibling->previousSibling){
+				sibling->previousSibling->nextSibling = childMeta;
+			}
+			childMeta->previousSibling = sibling->previousSibling;
+			sibling->previousSibling = childMeta;
+			childMeta->nextSibling = sibling;
+		} else {
+			if(cParent->lastChild){
+				cParent->lastChild->nextSibling = childMeta;
+			} else {
+				cParent->firstChild = childMeta;
+			}
+			childMeta->previousSibling = cParent->lastChild;
+			cParent->lastChild = childMeta;
+			childMeta->nextSibling = NULL;
+		}
+		cParent->childCount++;
+		child->refCount++;
+	} else {
+		return NULL;
 	}
 	return parent;
 }

@@ -1,3 +1,35 @@
+2006-10-24:
+	-edival.h:
+		-Bump micro version to 7 (for pending release 0.1.7)
+	-schema.c:
+		-Fix bug that incorrectly reset node usage counts while searching
+		for a segment in the schema.
+
+2006-10-22:
+	-complextype.c:
+		-Removed automatic assignment of the schema's root node as the last
+		EDITYPE_TRANSACTION created.  The root node must now be explicitely
+		set via the EDI_SetDocumentRoot function (schema function).
+		-Added EDI_InsertType to attached schema node objects to positions
+		in a parent node's tree other than at the last position.
+	-ediparse.[ch]:
+		-Added a "final" boolean to the parser.  This should be set true
+		for parsing the final piece of data in a stream/file.
+	-edival.h:
+		-Added EDI_DocumentType enumeration, required for schema creation.
+		Added "final" boolean argument to the parsing functions to indicate
+		the end of a buffer/file.
+		-Added EDI_DataElement struct definition.  This will be passed to
+		the element handler in lieu of a const char*.  The handler will now
+		receive validated numeric elements as numeric variables in addition to
+		a notification of the current element's type.
+		-EDITYPE_TRANSACTION renamed to EDITYPE_DOCUMENT.  This should point to
+		represent the root of the EDI document, e.g. ISA/IEA and their contents.
+		-Added Get/Set Document root functions.  Use to anchor a SchemaNode of
+		type EDITYPE_DOCUMENT to be the document root.
+	-x12parser.[ch]:
+		-Major code cleanups/enhancements/simplifications.
+
 2006-10-16:
 	-General:
 		-Code cleanups, removed multiple 'cobwebs' :-).  
@@ -110,7 +142,6 @@
 		-Use new string comparison function where appropriate for speed gains.
 		-Call EDI_ValidateSyntax on segments and composite elements.
 		
-
 2006-08-19:
 	Many updates and bugfixes through out the library.  Also included a sample program
 	for parsing and validating an 837 file.

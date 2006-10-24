@@ -31,6 +31,7 @@ typedef struct EDI_SyntaxNoteStruct  *EDI_SyntaxNote;
 /******************************************************************************/
 struct EDI_SchemaStruct {
 	char                            *identifier;
+	enum EDI_DocumentType            documentType;
 	struct hashtable                *elements;
 	struct hashtable                *complexNodes;
 	EDI_ComplexType                  root;
@@ -66,11 +67,12 @@ EDI_ValidateSegmentPosition(EDI_Schema  ,
  *  restrictions.
  */
 enum EDI_ElementValidationError 
-EDI_ValidateElement(EDI_Schema  ,
-                    int         ,   /* Element position      */
-                    int        *,   /* Reference to Composite position int */
-                    const char *,   /* String/element value  */
-                    int         );  /* String/element length */
+EDI_ValidateElement(EDI_Schema     ,
+                    int            ,  /* Element position      */
+                    int           *,  /* Reference to Composite position int */
+                    const char    *,  /* String/element value  */
+                    int            ,  /* String/element length */
+                    EDI_DataElement); /* Reference to a conversion element (output param) */
                     
 /**
  *  Validate the relational syntax of a segment/composite element node

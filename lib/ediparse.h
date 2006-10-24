@@ -21,12 +21,6 @@
 
 #include "common.h"
 
-enum EDI_DocumentType {
-	EDI_UNKNOWN_DOC = 0,
-	EDI_ANSI_X12    = 1,
-	EDI_EDIFACT     = 2
-};
-
 struct EDI_ParserStruct {
 	void                            *userData;
 	EDI_Memory_Handling_Suite       *memsuite;
@@ -55,8 +49,9 @@ struct EDI_ParserStruct {
 	void                            *child;
 	void                            *(*freeChild)(EDI_Parser);
 	enum EDI_DocumentType            docType;
-	void                            *schema;
+	EDI_Schema                       schema;
 	EDI_Bool                         validate;
+	EDI_Bool                         final;
 };
 
 #endif /* EDIParse_INCLUDED */

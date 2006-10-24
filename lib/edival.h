@@ -27,14 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 6
-
-/******************************************************************************/
-/********** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ************/
-/******************************************************************************/
-
-struct EDI_ParserStruct;
-typedef struct EDI_ParserStruct *EDI_Parser;
+#define EDI_MICRO_VERSION 7
 
 typedef unsigned char EDI_Bool;
 #define EDI_TRUE   ((EDI_Bool) 1)
@@ -64,12 +57,61 @@ enum EDI_ParsingState {
 	EDI_SUSPENDED
 };
 
+/*******************************************************************************
+ *  Enumeration of all supported document types.
+ ******************************************************************************/
+enum EDI_DocumentType {
+	EDI_UNKNOWN_DOC = 0,
+	EDI_ANSI_X12    = 1
+	/*EDI_EDIFACT     = 2 --- not yet! */
+};
+
+/*******************************************************************************
+ *  Enumeration of all supported basic datatypes.  Binary data allows any data
+ *  stream to validate, assuming size constraints are met (X12 BIN02 element).
+ ******************************************************************************/
+enum EDI_PrimitiveDataType {
+    EDI_DATA_STRING      = 1, /* Alphanumeric string & predefined identifiers */
+    EDI_DATA_INTEGER     = 2,
+    EDI_DATA_DECIMAL     = 3,
+    EDI_DATA_DATE        = 4, /* CCYYMMDD */
+    EDI_DATA_TIME        = 5, /* HHMMSSdd */
+    EDI_DATA_BINARY      = 6, /* Binary data */
+    EDI_DATA_BINARY_SIZE = 7  /* ONLY for a numeric element that gives the */
+                              /* size of a binary element following next.  */
+};
+
+/*******************************************************************************
+ * Struct for passing parsed element data back through the EDI_ElementHandler
+ * callback function.  All elements will be a "string" except EDI_DATA_INTEGER
+ * and EDI_DATA_BINARY_SIZE will be an "integer" and EDI_DATA_DECIMAL will be 
+ * a "decimal".  
+ ******************************************************************************/
+typedef struct EDI_DataElementStruct {
+	enum EDI_PrimitiveDataType type;
+	union {
+		const char  *string;
+		long double  decimal;
+		long long    integer;
+	} data;
+} *EDI_DataElement;
+
 typedef struct {
   void  *(*malloc_fcn) (size_t size);
   void  *(*realloc_fcn)(void *ptr, size_t size);
   void   (*free_fcn)   (void *ptr);
 } EDI_Memory_Handling_Suite;
 
+
+/*******************************************************************************
+
+
+       **** PARSING/TOKENIZATION API; SEE BELOW FOR VALIDATION API ******
+
+
+*******************************************************************************/
+struct EDI_ParserStruct;
+typedef struct EDI_ParserStruct *EDI_Parser;
 
 /*******************************************************************************
     Constructs a new parser.
@@ -115,7 +157,9 @@ void EDI_SetSegmentEndHandler(EDI_Parser, EDI_SegmentEndHandler);
 
 /*******************************************************************************
     This is called when a composite structure is found in the data stream.  The
-    only argument is the userData structure.
+    only argument is the userData structure.  If a composite was recieved with
+    only the FIRST component element populated and a schema has NOT been loaded,
+    neither this function nor the end composite handler function will be called.
 *******************************************************************************/
 typedef void (*EDI_CompositeStartHandler)(void *);
 
@@ -136,7 +180,7 @@ void EDI_SetCompositeEndHandler(EDI_Parser, EDI_CompositeEndHandler);
     N.B. - this function will also be called for zero length elements, i.e.,
     dat == '\0'
 *******************************************************************************/
-typedef void (*EDI_ElementHandler)(void *, const char *);
+typedef void (*EDI_ElementHandler)(void *, EDI_DataElement);
 
 void EDI_SetElementHandler(EDI_Parser, EDI_ElementHandler);
 
@@ -176,8 +220,8 @@ void EDI_SetNonEDIDataHandler(EDI_Parser, EDI_NonEDIDataHandler);
 
 EDI_Bool              EDI_ParserReset(EDI_Parser);
 void                 *EDI_GetBuffer(EDI_Parser, int);
-enum EDI_Status       EDI_Parse(EDI_Parser, const char *, int);
-enum EDI_Status       EDI_ParseBuffer(EDI_Parser, int);
+enum EDI_Status       EDI_Parse(EDI_Parser, const char *, int, EDI_Bool);
+enum EDI_Status       EDI_ParseBuffer(EDI_Parser, int, EDI_Bool);
 enum EDI_ParsingState EDI_GetParserState(EDI_Parser);
 
 /*******************************************************************************
@@ -217,26 +261,11 @@ typedef struct EDI_SchemaNodeStruct *EDI_SchemaNode;
  *  Enumeration of validation types which can be added to the validation schema.
  ******************************************************************************/
 enum EDI_NodeType {
-    EDITYPE_TRANSACTION = 1,
-    EDITYPE_LOOP        = 2,
-    EDITYPE_SEGMENT     = 3,
-    EDITYPE_COMPOSITE   = 4,
-    EDITYPE_ELEMENT     = 5
-};
-
-/*******************************************************************************
- *  Enumeration of all supported based datatypes.  Binary data allows any data
- *  stream to validate, assuming size constraints are met (X12 BIN02 element).
- ******************************************************************************/
-enum EDI_PrimitiveDataType {
-    EDI_DATA_STRING      = 1, /* Alphanumeric string & predefined identifiers */
-    EDI_DATA_INTEGER     = 2,
-    EDI_DATA_DECIMAL     = 3,
-    EDI_DATA_DATE        = 4, /* CCYYMMDD */
-    EDI_DATA_TIME        = 5, /* HHMMSSdd */
-    EDI_DATA_BINARY      = 6, /* Binary data */
-    EDI_DATA_BINARY_SIZE = 7  /* ONLY for a numeric element that gives the */
-                              /* size of a binary element following next.  */
+	EDITYPE_DOCUMENT    = 1,
+	EDITYPE_LOOP        = 2,
+	EDITYPE_SEGMENT     = 3,
+	EDITYPE_COMPOSITE   = 4,
+	EDITYPE_ELEMENT     = 5
 };
 
 /*******************************************************************************
@@ -296,8 +325,8 @@ enum EDI_SyntaxType {
     identifier field populated.  The name field can be used by the calling
     application to refer to one of multiple schemas loaded.
 *******************************************************************************/
-EDI_Schema EDI_SchemaCreate(void);
-EDI_Schema EDI_SchemaCreateNamed(const char *);
+EDI_Schema EDI_SchemaCreate(enum EDI_DocumentType);
+EDI_Schema EDI_SchemaCreateNamed(enum EDI_DocumentType, const char *);
 
 /*******************************************************************************
     Constructs a new schema using the memory management suite referred to
@@ -309,8 +338,10 @@ EDI_Schema EDI_SchemaCreateNamed(const char *);
     identifier field populated.  The name field can be used by the calling
     application to refer to one of multiple schemas loaded.
 *******************************************************************************/
-EDI_Schema EDI_SchemaCreate_MM(EDI_Memory_Handling_Suite *);
-EDI_Schema EDI_SchemaCreateNamed_MM(EDI_Memory_Handling_Suite *, const char *);
+EDI_Schema EDI_SchemaCreate_MM(enum EDI_DocumentType, EDI_Memory_Handling_Suite *);
+EDI_Schema EDI_SchemaCreateNamed_MM(enum EDI_DocumentType      ,
+                                    const char *               ,
+                                    EDI_Memory_Handling_Suite *);
 
 
 void EDI_SchemaFree(EDI_Schema);
@@ -341,7 +372,7 @@ void  EDI_SetSchemaId(EDI_Schema, const char *);
  * the min/max arguments refer to the length in bytes of the element.  Binary
  * elements are parsed as qualified by their preceeding numeric element.
  ******************************************************************************/
-EDI_SchemaNode 
+EDI_SchemaNode
 EDI_CreateElementType(EDI_Schema                ,
                       enum EDI_PrimitiveDataType,  /* Data type               */
                       const char               *,  /* Element type identifier */
@@ -365,14 +396,26 @@ EDI_AddElementValue(EDI_SchemaNode,  /* The node       */
 
 /*******************************************************************************
  * Returns a new composite/segment/loop/message type Schema node (complex types)
- * Requesting a type of EDITYPE_TRANSACTION will cause the new node to be set
- * as the schema's root node.
  ******************************************************************************/
 EDI_SchemaNode 
 EDI_CreateComplexType(EDI_Schema        ,
                       enum EDI_NodeType ,  /* Node type               */
                       const char       *); /* Complex type identifier */
 
+/*******************************************************************************
+ * Sets the document root to the document node represented by the third arg. for
+ * the document type given by the second arg.
+ ******************************************************************************/
+void EDI_SetDocumentRoot(EDI_Schema           ,
+                         EDI_SchemaNode       ); 
+                                           /* The document node representing
+                                            * the document's root.  The root
+                                            * must be of type EDITYPE_DOCUMENT */
+/*******************************************************************************
+ * Gets the document root
+ ******************************************************************************/
+EDI_SchemaNode EDI_GetDocumentRoot(EDI_Schema);
+                                            
 /*******************************************************************************
  * Saves the complex node identified by the second argument inside the schema.
  ******************************************************************************/
@@ -396,7 +439,7 @@ EDI_AddSyntaxNote(EDI_SchemaNode     ,  /* Segment/Composite with restriction */
                   unsigned int *     ); /* Integer list of element positions  */
 
 /*******************************************************************************
- *  Appends any of the following:
+ *  Appends or Inserts any of the following:
  *    1.  Element to a segment or composite.
  *    2.  Segment to a loop or transaction type.
  *    3.  Loop to a parent loop or parent transaction type.
@@ -413,6 +456,13 @@ EDI_AppendType(EDI_SchemaNode,  /* Parent Node  */
                unsigned int  ,  /* Minimum occurances of the child */
                unsigned int  ); /* Maximum occurances of the child */
 
+
+EDI_SchemaNode
+EDI_InsertType(EDI_SchemaNode,  /* Parent Node  */
+               EDI_SchemaNode,  /* Child Node   */
+               unsigned int  ,  /* Position in parent's child list */
+               unsigned int  ,  /* Minimum occurances of the child */
+               unsigned int  ); /* Maximum occurances of the child */
 
 /*******************************************************************************
     This is called when a loop structure is found in the data stream.  The
