@@ -55,7 +55,7 @@ void handleElementError(void *myData, int element, int component, enum EDI_Eleme
 
 void handleLoopStart(void *myData, const char *loopID)
 {
-	fprintf(stderr, "%s<%s>\n", prefix, loopID);
+	fprintf(stdout, "%s<%s>\n", prefix, loopID);
 	depth++;
 	prefix[0] = '\0';
 	for(int i = 0; i < depth; i++){
@@ -77,7 +77,7 @@ void handleLoopEnd(void *myData, const char *loopID)
 	for(int i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
-	fprintf(stderr, "%s</%s>\n", prefix, loopID);
+	fprintf(stdout, "%s</%s>\n", prefix, loopID);
 	if(strcmp("group", loopID) == 0){
 		EDI_Schema s = EDI_GetSchema((EDI_Parser)myData);
 	}
@@ -1050,7 +1050,7 @@ void load_standard(EDI_Parser p)
 
 void handleSegmentStart(void *myData, const char *tag)
 {
-	fprintf(stderr, "%sSeg: %3s ->", prefix, tag);
+	fprintf(stdout, "%sSeg: %3s ->", prefix, tag);
 	strcpy(curr_seg, tag);
 	curr_e = 0;
 	return;
@@ -1058,7 +1058,7 @@ void handleSegmentStart(void *myData, const char *tag)
 
 void handleSegmentEnd(void *myData, const char *tag)
 {
-    fprintf(stderr, " <- End %s\n", tag);
+    fprintf(stdout, " <- End %s\n", tag);
     return;
 }
 
@@ -1067,13 +1067,13 @@ void handleCompositeStart(void *myData)
 	curr_e++;
 	curr_c = 0;
 	is_comp = 1;
-	fprintf(stderr, "{");
+	fprintf(stdout, "{");
 	return;
 }
 
 void handleCompositeEnd(void *myData)
 {
-    fprintf(stderr, "}");
+    fprintf(stdout, "}");
     is_comp = 0;
     return;
 }
@@ -1086,23 +1086,17 @@ void handleElement(void *myData, EDI_DataElement element)
 	switch(element->type){
 		case EDI_DATA_INTEGER:
 		case EDI_DATA_BINARY_SIZE:
-			fprintf(stderr, "[%d]", element->data.integer);
+			fprintf(stdout, "[%d]", element->data.integer);
 			break;
 		case EDI_DATA_DECIMAL:
-			fprintf(stderr, "[%ld]", element->data.decimal);
+			fprintf(stdout, "[%ld]", element->data.decimal);
 			break;
 		default:
-			fprintf(stderr, "[%s]", element->data.string);
+			fprintf(stdout, "[%s]", element->data.string);
 			if(is_comp){
 				curr_c++;
-				/*
-				fprintf(stderr, "<%s%2.2d-%d>%s</%s%2.2d-%d>", curr_seg, curr_e, curr_c, element->data.string, curr_seg, curr_e, curr_c);
-				*/			
 			} else {
 				curr_e++;
-				/*
-				fprintf(stderr, "<%s%2.2d>%s</%s%2.2d>", curr_seg, curr_e, element->data.string, curr_seg, curr_e);
-				*/
 			}
 			if(group_start){
 				if(counter == 1){
@@ -1113,10 +1107,10 @@ void handleElement(void *myData, EDI_DataElement element)
 					}
 				} else if(counter == 8){
 					if(type_ok){
-						if((strcmp("005010X230", element->data.string) == 0)){
+						if((strncmp("005010", element->data.string, 6) == 0)){
 							load_standard((EDI_Parser)myData);
 						} else {
-							fprintf(stderr, "*** Version not '005010X230': No transaction-level validation will be performed on this functional group.\n");
+							fprintf(stderr, "*** Version not '005010': No transaction-level validation will be performed on this functional group.\n");
 						}
 					}
 					group_start = 0;
@@ -1184,7 +1178,7 @@ int main(int argc, char **argv)
 		EDI_Bool final = (length < BUFF_SIZE) ? EDI_TRUE : EDI_FALSE;
 		status = EDI_ParseBuffer(p, length, final);
 		if(status != EDI_STATUS_OK){
-			fprintf(stdout, "Error: %d\n", EDI_GetErrorCode(p));
+			fprintf(stderr, "Error: %d\n", EDI_GetErrorCode(p));
 			break;
 		}
 		buff = EDI_GetBuffer(p, BUFF_SIZE);
@@ -1200,10 +1194,10 @@ int main(int argc, char **argv)
 	gettimeofday(&tv, NULL);
 	end_time = tv.tv_sec + (tv.tv_usec * 0.000001);
 	file_size = statbuf.st_size;
-	fprintf(stdout, "Processed %d Bytes of data\n", (int)file_size);
+	fprintf(stderr, "Processed %d Bytes of data\n", (int)file_size);
 	run_time = end_time - start_time;
-	fprintf(stdout, "Runtime: %f seconds\n", run_time);
+	fprintf(stderr, "Runtime: %f seconds\n", run_time);
 	speed = (file_size/1048576)/run_time;
-	fprintf(stdout, "Average processing speed was %f MB/sec\n", speed);
+	fprintf(stderr, "Average processing speed was %f MB/sec\n", speed);
 	return 0;
 }

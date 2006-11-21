@@ -347,6 +347,12 @@ EDI_Schema EDI_SchemaCreateNamed_MM(enum EDI_DocumentType      ,
 void EDI_SchemaFree(EDI_Schema);
 
 /*******************************************************************************
+    Get or Set the document type of a schema.
+*******************************************************************************/
+enum EDI_DocumentType EDI_GetSchemaType(EDI_Schema);
+void                  EDI_SetSchemaType(EDI_Schema, enum EDI_DocumentType);
+
+/*******************************************************************************
     Get or Set the schema object currently being used by the parser.
 *******************************************************************************/
 EDI_Schema EDI_GetSchema(EDI_Parser);

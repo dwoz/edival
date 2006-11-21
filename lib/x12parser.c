@@ -122,7 +122,7 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 	componentSep                    = bufIter[104];
 	X12_PARSER->delimiters[SEGMENT] = bufIter[105];
 	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
-	if(EDI_PARSER->schema->documentType == EDI_ANSI_X12){
+	if(EDI_PARSER->schema && EDI_PARSER->schema->documentType == EDI_ANSI_X12){
 		EDI_PARSER->validate = EDI_TRUE;
 		X12_PARSER->segmentError = EDI_ValidateSegmentPosition(EDI_PARSER->schema, "ISA");
 	} else {
@@ -158,7 +158,6 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 			}
 			case SEGMENT:
 				ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, i, &j, tok.token, tok.length);
-				//EDI_ValidateElement(X12_PARSER->x12Schema, i, &j, tok.token, strlen(tok.token), X12_PARSER->data);
 				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 				EDI_PARSER->segmentEndHandler(EDI_PARSER->userData, "ISA");
 				break;
@@ -177,11 +176,7 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 				bufIter++;
 			}
 			EDI_GAP_SCAN(EDI_PARSER, bufIter);
-			if((strncmp(bufIter, "IEA", 3) == 0)){
-				return (void *)X12_ProcessIEA;
-			} else {
-				return (void *)X12_ProcessMessage;
-			}
+			return (void *)X12_ProcessMessage;
 		}
 	}
 	EDI_SetResumeState(EDI_PARSER->machine, (void *)X12_ProcessMessage);
@@ -538,6 +533,7 @@ EDI_StateHandler X12_ProcessIEA(EDI_Parser parser)
 		X12_PARSER->release               = 0;
 		if(X12_PARSER->savedTag){
 			free(X12_PARSER->savedTag);
+			X12_PARSER->savedTag = NULL;
 		}
 		X12_PARSER->savedElementPosition   = 0;
 		X12_PARSER->savedComponentPosition = 0;

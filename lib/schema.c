@@ -122,6 +122,7 @@ void EDI_SetDocumentRoot(EDI_Schema            schema,
 {
 	if(schema->stack[0]){
 		FREE(schema, schema->stack[0]);
+		schema->stack[0] = NULL;
 	}
 	if(node->type == EDITYPE_DOCUMENT){
 		schema->root = (EDI_ComplexType)node;
@@ -140,6 +141,22 @@ void EDI_SetDocumentRoot(EDI_Schema            schema,
 EDI_SchemaNode EDI_GetDocumentRoot(EDI_Schema schema)
 {
 	return &(schema->root->header);
+}
+/******************************************************************************/
+enum EDI_DocumentType EDI_GetSchemaType(EDI_Schema schema)
+{
+	enum EDI_DocumentType type = EDI_UNKNOWN_DOC;
+	if(schema){
+		type = schema->documentType;
+	}
+	return type;
+}
+/******************************************************************************/
+void EDI_SetSchemaType(EDI_Schema schema, enum EDI_DocumentType type)
+{
+	if(schema){
+		schema->documentType = type;
+	}
 }
 /******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema schema)
