@@ -49,10 +49,9 @@ enum X12_Delimiter {
 
 struct X12_ParserStruct {
 	EDI_Parser                      parent;
-	unsigned char                   version;
-	unsigned char                   release;
-	char                            delimiters[4];
+	char                            delimiters[5];
 	char                           *savedTag;
+	char                           *compositeTag;
 	int                             savedElementPosition;
 	int                             savedComponentPosition;
 	enum X12_ParseError             error;

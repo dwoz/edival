@@ -107,6 +107,7 @@ static void schemaInit(EDI_Schema schema)
 	schema->elements         = create_hashtable(20);
 	schema->complexNodes     = create_hashtable(20);
 	schema->root             = NULL;
+	schema->stack[0]         = NULL;
 	schema->depth            = 0;
 	schema->prevElementNode  = NULL;
 	schema->prevElementIndex = 0;
@@ -281,7 +282,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 								SCHEMA_READ(closed - 1)->node->nodeID
 							);
 						}
-					}				
+					}
 					if(schema->loopStartHandler){
 						schema->loopStartHandler(
 							schema->parser->userData,

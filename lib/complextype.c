@@ -295,6 +295,40 @@ EDI_SchemaNode EDI_InsertType(EDI_SchemaNode parent    ,
 	return parent;
 }
 /******************************************************************************/
+EDI_SchemaNode* EDI_GetChildNodes(EDI_SchemaNode  node,
+                                  unsigned int   *argc,
+                                  unsigned int   **min,
+                                  unsigned int   **max)
+{
+	EDI_SchemaNode *children = NULL;
+	unsigned int *min_occurs, *max_occurs;
+	
+	*argc = 0;
+	if(node->type !=EDITYPE_ELEMENT){
+		EDI_ComplexType parent = (EDI_ComplexType)node;
+		if(parent && parent->childCount > 0){
+			children = MALLOC(
+				node->schema, 
+				sizeof(struct EDI_SchemaNodeStruct) * parent->childCount
+			);
+			min_occurs = MALLOC(node->schema, sizeof(int) * parent->childCount);
+			max_occurs = MALLOC(node->schema, sizeof(int) * parent->childCount);
+			int i;
+			EDI_ChildNode child = parent->firstChild;
+			for(i = 0; child; i++){
+				children[i] = child->node;
+				min_occurs[i] = child->min_occurs;
+				max_occurs[i] = child->max_occurs;
+				child = child->nextSibling;
+			}
+			*argc = parent->childCount;
+			*min = min_occurs;
+			*max = max_occurs;
+		}
+	}
+	return children;
+}
+/******************************************************************************/
 void EDI_DisposeComplexType(EDI_ComplexType node)
 {
 	EDI_SchemaNode child;

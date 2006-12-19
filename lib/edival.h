@@ -27,7 +27,7 @@ extern "C" {
 
 #define EDI_MAJOR_VERSION 0
 #define EDI_MINOR_VERSION 1
-#define EDI_MICRO_VERSION 7
+#define EDI_MICRO_VERSION 8
 
 typedef unsigned char EDI_Bool;
 #define EDI_TRUE   ((EDI_Bool) 1)
@@ -434,6 +434,7 @@ void EDI_StoreComplexNode(EDI_Schema     ,
 EDI_SchemaNode EDI_GetComplexNodeByID(EDI_Schema  ,
                                       const char *);
 
+
 /*******************************************************************************
  *  Add a syntax restriction to a segment or composite for the elements it
  *  contains.  
@@ -469,6 +470,20 @@ EDI_InsertType(EDI_SchemaNode,  /* Parent Node  */
                unsigned int  ,  /* Position in parent's child list */
                unsigned int  ,  /* Minimum occurances of the child */
                unsigned int  ); /* Maximum occurances of the child */
+
+
+/*******************************************************************************
+ * Retrieves an array of a complex node's direct child nodes.  The child count
+ * will be placed in the integer value pointed to by the first integer pointer.
+ * The third argument should be a pointer that will contain an array of the 
+ * minimum repeats of the child in the context of the parent.  The fourth will 
+ * contain the maximum repeats.
+ ******************************************************************************/
+EDI_SchemaNode* EDI_GetChildNodes(EDI_SchemaNode ,
+                                  unsigned int * ,
+                                  unsigned int **,
+                                  unsigned int **);
+
 
 /*******************************************************************************
     This is called when a loop structure is found in the data stream.  The

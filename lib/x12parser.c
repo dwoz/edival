@@ -41,32 +41,32 @@ tok.length = 0;\
 if(string){\
 	char *iter;\
 	for(iter = string; *iter; iter++){\
-        if(!(*iter ^ delimiters[ELEMENT])){\
-				tok.type = ELEMENT;\
-            *iter++ = '\0';\
-            tok.token = string;\
-            string = iter;\
-            break;\
-        } else if(!(*iter ^ delimiters[SEGMENT])){\
-            tok.type = SEGMENT;\
-            *iter++ = '\0';\
-            tok.token = string;\
-            string = iter;\
-            break;\
-        } else if(!(*iter ^ delimiters[COMPONENT])){\
-            tok.type = COMPONENT;\
-            *iter++ = '\0';\
-            tok.token = string;\
-            string = iter;\
-            break;\
-        } else if(!(*iter ^ delimiters[REPEAT])){\
-				tok.type = REPEAT;\
-            *iter++ = '\0';\
-            tok.token = string;\
-            string = iter;\
-            break;\
-        }\
-        tok.length++;\
+		if(!(*iter ^ delimiters[ELEMENT])){\
+			tok.type = ELEMENT;\
+			*iter++ = '\0';\
+			tok.token = string;\
+			string = iter;\
+			break;\
+		} else if(!(*iter ^ delimiters[SEGMENT])){\
+			tok.type = SEGMENT;\
+			*iter++ = '\0';\
+			tok.token = string;\
+			string = iter;\
+			break;\
+		} else if(!(*iter ^ delimiters[COMPONENT])){\
+			tok.type = COMPONENT;\
+			*iter++ = '\0';\
+			tok.token = string;\
+			string = iter;\
+			break;\
+		} else if(!(*iter ^ delimiters[REPEAT])){\
+			tok.type = REPEAT;\
+			*iter++ = '\0';\
+			tok.token = string;\
+			string = iter;\
+			break;\
+		}\
+		tok.length++;\
 	}\
 }
 /******************************************************************************/
@@ -141,17 +141,9 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 			{
 				ELEMENT_VALIDATE(EDI_PARSER, X12_PARSER, i, &j, tok.token, tok.length);
 				if(i == 12){
-					char *error;
-					long  version = strtol(tok.token, &error, 10);
-					if(version == 0 && error != '\0'){
-						X12_PARSER->error = X12_INVALID_VERSION;
-						/* should generate TA1 error info here. */
-					}
-					if(version >= 402 && !(isalnum(repeatSep))){
+					if(strcmp(tok.token, "00402") >= 0){
 						X12_PARSER->delimiters[REPEAT] = repeatSep;
 					}
-					X12_PARSER->version = version / 100;
-					X12_PARSER->release = version % 100;
 				}
 				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 				break;
@@ -200,13 +192,6 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 				tok.token++;
 			}
 			EDI_GAP_SCAN(EDI_PARSER, tok.token);
-		 	/*if(string_eq(tok.token, "IEA")){
-		 		EDI_ValidateSegmentPosition(X12_PARSER->x12Schema, "IEA");
-				EDI_PARSER->segmentStartHandler(EDI_PARSER->userData, "IEA");
-				X12_PARSER->previous = ELEMENT;
-				EDI_PARSER->bufReadPtr = bufIter;
-				return (void *)X12_ProcessIEA;
-			} else*/ 
 			if(string_eq(tok.token, "ISA")){
 				/* If this happens, we had an incomplete interchange (missing IEA) 
 				 * and we were lucky enough that the next interchange used the same
@@ -217,8 +202,6 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 				X12_PARSER->delimiters[ELEMENT]   = '\0';
 				X12_PARSER->delimiters[REPEAT]    = '\0';
 				X12_PARSER->delimiters[SEGMENT]   = '\0';
-				X12_PARSER->version             = 0;
-				X12_PARSER->release             = 0;
 				EDI_PARSER->bufReadPtr = bufIter;
 				return (void *)X12_ProcessISA;
 			}
@@ -235,14 +218,6 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 		X12_PARSER->data->data.string = tok.token;
 		switch(tok.type){
 			case REPEAT:
-				if(EDI_PARSER->repeatHandler){
-					EDI_PARSER->repeatHandler(EDI_PARSER->userData);
-				} else {
-					fprintf(stderr, "FATAL (edival): A repeated element was found in the data stream but no \n\
-					callback function has been registered for the event using EDI_SetRepeatHandler()\n");
-					EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
-					return EDI_PARSER->error;
-				}
 			case ELEMENT:
 	        	switch(X12_PARSER->previous){
 	        		case COMPONENT:
@@ -279,6 +254,16 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	        			} else {
 	        				EDI_PARSER->elementHandler(EDI_PARSER->userData, X12_PARSER->data);
 	        			}
+	        			if(tok.type == REPEAT){
+							if(EDI_PARSER->repeatHandler){
+								EDI_PARSER->repeatHandler(EDI_PARSER->userData);
+							} else {
+								fprintf(stderr, "FATAL (edival): A repeated element was found in the data stream but no \n\
+								callback function has been registered for the event using EDI_SetRepeatHandler()\n");
+								EDI_PARSER->errorCode = EDI_ERROR_INVALID_STATE;
+								return EDI_PARSER->error;
+							}
+						}
 	        			break;
 					default: ;
 	        	}
@@ -349,8 +334,6 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 								X12_PARSER->delimiters[ELEMENT]   = '\0';
 								X12_PARSER->delimiters[REPEAT]    = '\0';
 								X12_PARSER->delimiters[SEGMENT]   = '\0';
-								X12_PARSER->version             = 0;
-								X12_PARSER->release             = 0;
 								return EDI_PARSER->seekHeader;
 							}
 							break;
@@ -366,7 +349,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 			}
 			EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
 	    	if(X12_PARSER->savedTag){
-	    		FREE(EDI_PARSER, X12_PARSER->savedTag);
+	    		free(X12_PARSER->savedTag);
 	    	}
 	    	X12_PARSER->savedTag = EDI_strdup(tag);
 			X12_PARSER->savedElementPosition = element;
@@ -379,7 +362,7 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 	}
 	if(tag){
     	if(X12_PARSER->savedTag){
-    		FREE(EDI_PARSER, X12_PARSER->savedTag);
+    		free(X12_PARSER->savedTag);
     	}
     	X12_PARSER->savedTag = EDI_strdup(tag);
 		X12_PARSER->savedElementPosition = element;
@@ -529,8 +512,6 @@ EDI_StateHandler X12_ProcessIEA(EDI_Parser parser)
 		X12_PARSER->delimiters[ELEMENT]   = '\0';
 		X12_PARSER->delimiters[REPEAT]    = '\0';
 		X12_PARSER->delimiters[SEGMENT]   = '\0';
-		X12_PARSER->version               = 0;
-		X12_PARSER->release               = 0;
 		if(X12_PARSER->savedTag){
 			free(X12_PARSER->savedTag);
 			X12_PARSER->savedTag = NULL;

@@ -454,7 +454,7 @@ void EDI_ParserFree(EDI_Parser parser)
 	}
 	if(parser->binBuffer){
 		FREE(parser, parser->binBuffer);
-	}		
+	}
 	FREE(parser, parser->dataBuffer);
 	FREE(parser, parser->machine);
 	free_fcn = parser->memsuite->free_fcn;
