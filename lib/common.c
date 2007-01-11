@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "common.h"
 /******************************************************************************/
-size_t EDI_strnlen (const char *string, size_t maxlen)
+size_t EDI_strnlen(const char *string, size_t maxlen)
 {
   const char *end = memchr(string, '\0', maxlen);
   return end ? (size_t) (end - string) : maxlen;

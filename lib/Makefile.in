@@ -60,8 +60,9 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libedival_la_DEPENDENCIES =
 am__objects_1 =
-am__objects_2 = common.lo complextype.lo ediparse.lo hashtable.lo \
-	schema.lo simpletype.lo statemachine.lo x12parser.lo
+am__objects_2 = common.lo complextype.lo ediparse.lo edifactparser.lo \
+	hashtable.lo schema.lo simpletype.lo statemachine.lo \
+	x12parser.lo
 am_libedival_la_OBJECTS = $(am__objects_1) $(am__objects_1) \
 	$(am__objects_2)
 libedival_la_OBJECTS = $(am_libedival_la_OBJECTS)
@@ -198,12 +199,13 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 INCLUDES = 
-AM_CFLAGS = -std=c99 -O3 -Wall -c -fmessage-length=0
+AM_CFLAGS = -O3 -fomit-frame-pointer -Wall -c -fmessage-length=0
 lib_LTLIBRARIES = libedival.la
 edival_public_h_SOURCES = edival.h               
 edival_private_h_SOURCES = \
 	common.h               \
 	complextype.h          \
+	edifactparser.h        \
 	ediparse.h             \
 	hashtable.h            \
 	schema.h               \
@@ -215,6 +217,7 @@ edival_C_SOURCES = \
 	common.c				\
 	complextype.c		\
 	ediparse.c			\
+	edifactparser.c   \
 	hashtable.c			\
 	schema.c				\
 	simpletype.c		\
@@ -305,6 +308,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/complextype.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edifactparser.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ediparse.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hashtable.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/schema.Plo@am__quote@

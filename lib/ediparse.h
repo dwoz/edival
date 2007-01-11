@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ struct EDI_ParserStruct {
 	char                            *dataBufEnd;
 	enum EDI_Error                   errorCode;
 	enum EDI_ParsingState            state;
+	EDI_DocumentStartHandler         documentStartHandler;
+	EDI_DocumentEndHandler           documentEndHandler;
 	EDI_SegmentStartHandler          segmentStartHandler;
 	EDI_SegmentEndHandler            segmentEndHandler;
 	EDI_CompositeStartHandler        compositeStartHandler;

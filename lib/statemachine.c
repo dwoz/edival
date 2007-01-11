@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 #define MAX_RUN_STATES 25
 /******************************************************************************/
 struct EDI_StateMachineStruct {
-    EDI_StateHandler startState;
-    EDI_StateHandler resumeState;
+	EDI_StateHandler startState;
+	EDI_StateHandler resumeState;
 	EDI_StateHandler runStates[MAX_RUN_STATES];
 	int              stateCount;
 	EDI_StateHandler endStates[MAX_RUN_STATES];
@@ -42,7 +42,7 @@ static int seekState(EDI_StateMachine self, EDI_StateHandler h)
 /******************************************************************************/
 EDI_StateMachine EDI_StateMachineCreate(const EDI_Memory_Handling_Suite *suite)
 {
-    int i;
+	int i;
 	EDI_StateMachine new = NULL;
 	new = suite->malloc_fcn(sizeof(struct EDI_StateMachineStruct));
 	if(new){

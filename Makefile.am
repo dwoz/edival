@@ -11,7 +11,7 @@ libedivaldoc_DATA = \
 	TODO
 
 libedivalexampledir = ${libedivaldocdir}/examples
-libedivalexample_DATA = examples/scan997.c examples/scan837.c examples/README
+libedivalexample_DATA = examples/scan997.c examples/scan837.c examples/scanedi.c examples/README
 
 EXTRA_DIST = $(libedivaldoc_DATA)
 

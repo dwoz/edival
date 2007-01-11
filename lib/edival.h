@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #ifndef EDIVAL_INCLUDED
 #define EDIVAL_INCLUDED
 
+#define _ISOC99_SOURCE
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -62,8 +63,8 @@ enum EDI_ParsingState {
  ******************************************************************************/
 enum EDI_DocumentType {
 	EDI_UNKNOWN_DOC = 0,
-	EDI_ANSI_X12    = 1
-	/*EDI_EDIFACT     = 2 --- not yet! */
+	EDI_ANSI_X12    = 1,
+	EDI_EDIFACT     = 2
 };
 
 /*******************************************************************************
@@ -135,6 +136,26 @@ EDI_Parser EDI_ParserCreate_MM(EDI_Memory_Handling_Suite *memsuite);
     this structure is to be determined by the calling program.
 *******************************************************************************/
 void EDI_SetUserData(EDI_Parser parser, void *p);
+
+
+/*******************************************************************************
+    This is called when a document is found in the data stream.  For example,
+    this will be called when a valid ISA segment is found in the stream for X12
+    messages. 
+*******************************************************************************/
+typedef void (*EDI_DocumentStartHandler)(void *, enum EDI_DocumentType);
+
+void EDI_SetDocumentStartHandler(EDI_Parser, EDI_DocumentStartHandler);
+
+
+/*******************************************************************************
+    This is called when the current document ends.  For example,
+    this will be called when an IEA segment is found in the stream for X12
+    messages. 
+*******************************************************************************/
+typedef void (*EDI_DocumentEndHandler)(void *);
+
+void EDI_SetDocumentEndHandler(EDI_Parser, EDI_DocumentEndHandler);
 
 
 /*******************************************************************************

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1722,6 +1722,28 @@ void load_standard(EDI_Parser p)
 	return;
 }
 
+void handleDocumentStart(void *myData, enum EDI_DocumentType type)
+{
+	fprintf(stdout, "%s<document>\n", prefix);
+	depth++;
+	prefix[0] = '\0';
+	for(int i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	return;
+}
+
+void handleDocumentEnd(void *myData)
+{
+	depth--;
+	prefix[0] = '\0';
+	for(int i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	fprintf(stdout, "%s</document>\n", prefix);
+	return;
+}
+
 void handleSegmentStart(void *myData, const char *tag)
 {
 	fprintf(stdout, "%sSeg: %3s ->", prefix, tag);
@@ -1837,6 +1859,8 @@ int main(int argc, char **argv)
         
 	p = EDI_ParserCreate();
 	
+	EDI_SetDocumentStartHandler(p, handleDocumentStart);
+	EDI_SetDocumentEndHandler(p, handleDocumentEnd);
 	EDI_SetSegmentStartHandler(p, handleSegmentStart);
 	EDI_SetSegmentEndHandler(p, handleSegmentEnd);
 	EDI_SetCompositeStartHandler(p, handleCompositeStart);

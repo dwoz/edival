@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "edifactparser.h"
 #include "ediparse.h"
 #include "schema.h"
 #include "statemachine.h"
@@ -28,12 +29,11 @@ static void        parserInit(EDI_Parser);
 /******************************************************************************/
 EDI_StateHandler seekHeader(EDI_Parser parser)
 {
-	int                i       = 0;
-	int                prefix  = 0;
-	char               tag[4]  = "   ";
-	char              *invalid = NULL;
-	static char       *previous;
-	char              *bufIter = NULL;
+	int          i       = 0;
+	char         tag[4]  = "   ";
+	static char *previous;
+	char        *bufIter = NULL;
+	EDI_Bool     found = EDI_FALSE;
 
 	bufIter = parser->bufReadPtr;
 	if(previous == parser->bufReadPtr){
@@ -43,7 +43,7 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 		for(i = 0; i < 3; i++){
 			tag[i] = *bufIter++;
 		}
-		if(strncmp(tag, "ISA", 3) == 0){
+		if(string_eq(tag, "ISA")){
 			if(parser->docType != EDI_ANSI_X12){
 				if(parser->docType != EDI_UNKNOWN_DOC){
 					parser->freeChild(parser);
@@ -51,11 +51,23 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 				parser->child = X12_ParserCreate(parser);
 				parser->docType = EDI_ANSI_X12;
 			}
+			found = EDI_TRUE;
+		} else if(string_eq(tag, "UNA") || string_eq(tag, "UNB")){
+			if(parser->docType != EDI_EDIFACT){
+				if(parser->docType != EDI_UNKNOWN_DOC){
+					parser->freeChild(parser);
+				}
+				parser->child = EDIFACT_ParserCreate(parser);
+				parser->docType = EDI_EDIFACT;
+			}
+			found = EDI_TRUE;
+		}
+		if(found){
 			previous = bufIter;
 			if((bufIter - parser->bufReadPtr) > 3){
-		        prefix = bufIter - parser->bufReadPtr - 3;
-		        if(prefix > 1 || !isspace(*(parser->bufReadPtr))){
-					invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
+				int prefix = bufIter - parser->bufReadPtr - 3;
+				if(prefix > 1 || !isspace(*(parser->bufReadPtr))){
+					char *invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
 					if(!invalid){
 						parser->errorCode = EDI_ERROR_NO_MEM;
 						return parser->error;
@@ -71,8 +83,8 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 		}
 	}
 	if(parser->bufReadPtr < parser->bufEndPtr && bufIter == parser->bufEndPtr){
-        prefix = bufIter - parser->bufReadPtr;
-		invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
+		int prefix = bufIter - parser->bufReadPtr;
+		char *invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
 		if(!invalid){
 			parser->errorCode = EDI_ERROR_NO_MEM;
 			return parser->error;
@@ -175,6 +187,16 @@ static void parserInit(EDI_Parser parser)
 void EDI_SetUserData(EDI_Parser parser, void *p)
 {
     parser->userData = p;
+}
+/******************************************************************************/
+void EDI_SetDocumentStartHandler(EDI_Parser parser, EDI_DocumentStartHandler h)
+{
+    parser->documentStartHandler = h;
+}
+/******************************************************************************/
+void EDI_SetDocumentEndHandler(EDI_Parser parser, EDI_DocumentEndHandler h)
+{
+    parser->documentEndHandler = h;
 }
 /******************************************************************************/
 void EDI_SetSegmentStartHandler(EDI_Parser parser, EDI_SegmentStartHandler h)
@@ -340,6 +362,14 @@ enum EDI_Status EDI_ParseBuffer(EDI_Parser parser, int len, EDI_Bool final)
 {
 	enum EDI_Error error = EDI_ERROR_NONE;
 
+	if(!parser->documentStartHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Document Start\n");
+		error = parser->errorCode = EDI_ERROR_ABORTED;
+	}
+	if(!parser->documentEndHandler){
+		fprintf(stderr, "FATAL (edival): No callback registered, event: Document End\n");
+		error = parser->errorCode = EDI_ERROR_ABORTED;
+	}
 	if(!parser->segmentStartHandler){
 		fprintf(stderr, "FATAL (edival): No callback registered, event: Segment Start\n");
 		error = parser->errorCode = EDI_ERROR_ABORTED;

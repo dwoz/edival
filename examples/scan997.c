@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -213,7 +213,7 @@ void load_basic_standards(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_STRING, "455", 1, 2);
 
 		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "479", 2, 2);
-		EDI_AddElementValue(hold, "AA");
+		/*EDI_AddElementValue(hold, "AA");
 		EDI_AddElementValue(hold, "AB");
 		EDI_AddElementValue(hold, "AC");
 		EDI_AddElementValue(hold, "AD");
@@ -472,7 +472,7 @@ void load_basic_standards(EDI_Parser p)
 		EDI_AddElementValue(hold, "WI");
 		EDI_AddElementValue(hold, "WL");
 		EDI_AddElementValue(hold, "WR");
-		EDI_AddElementValue(hold, "WT");
+		EDI_AddElementValue(hold, "WT");*/
 		EDI_CreateElementType(s, EDI_DATA_STRING, "480", 1, 12);
 
 		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ISA");
@@ -553,7 +553,7 @@ void load_standard(EDI_Parser p)
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "my143", 3, 3);
 		EDI_AddElementValue(parent, "997");
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "143", 3, 3);
-		EDI_AddElementValue(parent, "100");
+		/*EDI_AddElementValue(parent, "100");
 		EDI_AddElementValue(parent, "101");
 		EDI_AddElementValue(parent, "102");
 		EDI_AddElementValue(parent, "103");
@@ -870,19 +870,19 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "996");
 		EDI_AddElementValue(parent, "997");
 		EDI_AddElementValue(parent, "998");
-		EDI_AddElementValue(parent, "999");
+		EDI_AddElementValue(parent, "999");*/
 		EDI_CreateElementType(s, EDI_DATA_STRING, "329", 4, 9);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "447", 1, 4);
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "715", 1, 1);
-		EDI_AddElementValue(parent, "A");
+		/*EDI_AddElementValue(parent, "A");
 		EDI_AddElementValue(parent, "E");
 		EDI_AddElementValue(parent, "M");
 		EDI_AddElementValue(parent, "P");
 		EDI_AddElementValue(parent, "R");
 		EDI_AddElementValue(parent, "W");
-		EDI_AddElementValue(parent, "X");
+		EDI_AddElementValue(parent, "X");*/
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "716", 1, 3);
-		EDI_AddElementValue(parent, "1");
+		/*EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
@@ -901,16 +901,16 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "23");
 		EDI_AddElementValue(parent, "24");
 		EDI_AddElementValue(parent, "25");
-		EDI_AddElementValue(parent, "26");
+		EDI_AddElementValue(parent, "26");*/
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "717", 1, 1);
-		EDI_AddElementValue(parent, "A");
+		/*EDI_AddElementValue(parent, "A");
 		EDI_AddElementValue(parent, "E");
 		EDI_AddElementValue(parent, "M");
 		EDI_AddElementValue(parent, "R");
 		EDI_AddElementValue(parent, "W");
-		EDI_AddElementValue(parent, "X");
+		EDI_AddElementValue(parent, "X");*/
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "718", 1, 3);
-		EDI_AddElementValue(parent, "1");
+		/*EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
@@ -932,21 +932,21 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "24");
 		EDI_AddElementValue(parent, "25");
 		EDI_AddElementValue(parent, "26");
-		EDI_AddElementValue(parent, "27");
+		EDI_AddElementValue(parent, "27");*/
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "719", 1, 10);
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "720", 1, 3);
-		EDI_AddElementValue(parent, "1");
+		/*EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
 		EDI_AddElementValue(parent, "5");
 		EDI_AddElementValue(parent, "6");
 		EDI_AddElementValue(parent, "7");
-		EDI_AddElementValue(parent, "8");
+		EDI_AddElementValue(parent, "8");*/
 		EDI_CreateElementType(s, EDI_DATA_STRING, "721", 2, 3);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "722", 1, 2);
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "723", 1, 3);
-		EDI_AddElementValue(parent, "1");
+		/*EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
@@ -957,7 +957,7 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "9");
 		EDI_AddElementValue(parent, "10");
 		EDI_AddElementValue(parent, "12");
-		EDI_AddElementValue(parent, "13");
+		EDI_AddElementValue(parent, "13");*/
 		EDI_CreateElementType(s, EDI_DATA_STRING, "724", 1, 99);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "725", 1, 4);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "1528", 1, 2);
@@ -1045,6 +1045,28 @@ void load_standard(EDI_Parser p)
 		
 		EDI_InsertType(EDI_GetComplexNodeByID(s, "group"), root, 2, 0, 999999999);
 	}
+	return;
+}
+
+void handleDocumentStart(void *myData, enum EDI_DocumentType type)
+{
+	fprintf(stdout, "%s<document>\n", prefix);
+	depth++;
+	prefix[0] = '\0';
+	for(int i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	return;
+}
+
+void handleDocumentEnd(void *myData)
+{
+	depth--;
+	prefix[0] = '\0';
+	for(int i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	fprintf(stdout, "%s</document>\n", prefix);
 	return;
 }
 
@@ -1163,6 +1185,8 @@ int main(int argc, char **argv)
         
 	p = EDI_ParserCreate();
 	
+	EDI_SetDocumentStartHandler(p, handleDocumentStart);
+	EDI_SetDocumentEndHandler(p, handleDocumentEnd);
 	EDI_SetSegmentStartHandler(p, handleSegmentStart);
 	EDI_SetSegmentEndHandler(p, handleSegmentEnd);
 	EDI_SetCompositeStartHandler(p, handleCompositeStart);

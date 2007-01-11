@@ -1,20 +1,43 @@
+2007-01-10:
+	-edifactparser.[ch]:
+		-Hide data declarations from edifactparser.h in edifactparser.c.
+	-x12parser.[ch]:
+		-Hide data declarations from x12parser.h in x12parser.c.
+
+2007-01-07:
+	-edival.h:
+		-Enable EDIFACT document type.
+	-edifactparser.[ch]:
+		-Added new parser module to handle EDIFACT messages.
+	-ediparse.c:
+		-Updates to check for EDIFACT headers (UNA/UNB) and pass
+		parsing to the EDIFACT module.
+
+2007-01-03:
+	-edival.[ch]:
+		-Bump micro version to 8 (for pending release 0.1.8)
+		-Add document start/end handlers to signal the beginning and end of a 
+		message in the data stream.
+	-x12parser.c:
+		-Add calls to start/end document handlers for ISA/IEA segments.
+
 2006-12-17:
-	-edival.h
+	-edival.h:
 		-Add function to retrieve array of a schema node's child nodes.
-	-schema.c
+	-schema.c:
 		-Fix bug where the root of the schema tree was not being initialized.
 
 2006-12-04:
-	-x12parser.[h]
+	-x12parser.[h]:
 		-Fix bug with size of the delimiter array.  This will fix segmentation faults
 		relating to the saved tag ID on the X12 parser.
 
 2006-12-03:
-	-x12parser.c
+	-x12parser.c:
 		-Fix bug with element repetition handling.
 
 2006-11-26:
-	-x12parser.[ch]
+	-x12parser.[ch]:
 		-Remove unnecessary version/release information stored on the parser.
 		Replaced with string-version check to assign the repeat seperator for
 		X12 interchanges greater than or equal to version '00402'. 

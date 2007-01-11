@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,46 +19,8 @@
 #ifndef X12Parse_INCLUDED
 #define X12Parse_INCLUDED
 
-#include "common.h"
 #include "ediparse.h"
-#include "schema.h"
-#include "statemachine.h"
 
-enum X12_ParseError {
-	X12_ERROR_NONE,
-	X12_CNTL_NUM_MATCH,
-	X12_UNSUPPORTED_STANDARD,
-	X12_UNSUPPORTED_VERSION,
-	X12_INVALID_SEG_TERM,
-	X12_INVALID_STANDARD,
-	X12_INVALID_VERSION,
-	X12_INVALID_CNTL_NUM,
-	X12_INVALID_CONTENT,
-	X12_INVALID_ELEM_SEP,
-	X12_INVALID_COMP_SEP,
-	X12_INVALID_REP_SEP
-};
-
-enum X12_Delimiter {
-	UNKNOWN        =  0,
-	ELEMENT        =  1,
-	COMPONENT      =  2,
-	REPEAT         =  3,
-	SEGMENT        =  4
-};
-
-struct X12_ParserStruct {
-	EDI_Parser                      parent;
-	char                            delimiters[5];
-	char                           *savedTag;
-	char                           *compositeTag;
-	int                             savedElementPosition;
-	int                             savedComponentPosition;
-	enum X12_ParseError             error;
-	enum EDI_SegmentValidationError segmentError;
-	enum X12_Delimiter              previous;
-	EDI_DataElement                 data;
-};
 typedef struct X12_ParserStruct *X12_Parser;
 
 X12_Parser X12_ParserCreate(EDI_Parser);

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -217,7 +217,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 		startCount = startNode->count;
 		current = startNode;
 		while(current){
-			if(current->node->type == EDITYPE_SEGMENT){
+			if(IS_SEGMENT(current->node)){
 				if(string_eq(nodeID, current->node->nodeID)){
 					if(PARENT_NODE->firstChild == current && current->count > 0){
 						while(current){
@@ -238,7 +238,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 							current = current->nextSibling;
 						}
 						current = PARENT_NODE->firstChild;
-						if(schema->loopEndHandler){
+						if(PARENT_NODE->header.type == EDITYPE_LOOP && schema->loopEndHandler){
 							schema->loopEndHandler(
 								schema->parser->userData,
 								PARENT_NODE->header.nodeID
@@ -252,7 +252,8 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 						}
 					}
 					if(schema->depth < startDepth && schema->loopEndHandler){
-						for(int closed = startDepth; closed > schema->depth; closed--){
+						int closed;
+						for(closed = startDepth; closed > schema->depth; closed--){
 							schema->loopEndHandler(
 								schema->parser->userData,
 								SCHEMA_READ(closed - 1)->node->nodeID
@@ -266,7 +267,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 					SCHEMA_SAVE(current);
 					break;
 				}
-			} else {
+			} else if(IS_LOOP(current->node)){
 				EDI_LoopNode loop = (EDI_LoopNode)(current->node);
 				if(string_eq(nodeID, loop->startID)){
 					/* Reset the node usage counts before entering the loop */
@@ -276,7 +277,8 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 						clear = clear->nextSibling;
 					}
 					if(schema->depth < startDepth && schema->loopEndHandler){
-						for(int closed = startDepth; closed > schema->depth; closed--){
+						int closed;
+						for(closed = startDepth; closed > schema->depth; closed--){
 							schema->loopEndHandler(
 								schema->parser->userData,
 								SCHEMA_READ(closed - 1)->node->nodeID
@@ -351,7 +353,8 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 		schema->segmentErrorHandler(schema->parser->userData,	nodeID, error);
 	}
 	if(mCount && schema->segmentErrorHandler){
-		for(int i = 0; i < mCount; i++){
+		int i;
+		for(i = 0; i < mCount; i++){
 			schema->segmentErrorHandler(
 				schema->parser->userData,
 				mandatory[i],

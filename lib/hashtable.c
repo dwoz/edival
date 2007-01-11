@@ -196,8 +196,7 @@ hashtable_insert(struct hashtable *h, void *k, void *v)
     /* This method allows duplicate keys - but they shouldn't be used */
     unsigned int index;
     struct entry *e;
-    if (++(h->entrycount) > h->loadlimit)
-    {
+    if (++(h->entrycount) > h->loadlimit){
         /* Ignore the return value. If expand fails, we should
          * still try cramming just this value into the existing table
          * -- we may not have memory for a larger table, but one more

@@ -2,7 +2,7 @@
 
 INCLUDES =
 
-AM_CFLAGS = -std=c99 -O3 -Wall -c -fmessage-length=0
+AM_CFLAGS = -O3 -fomit-frame-pointer -Wall -c -fmessage-length=0
 
 lib_LTLIBRARIES = libedival.la
 
@@ -11,6 +11,7 @@ edival_public_h_SOURCES = edival.h
 edival_private_h_SOURCES = \
 	common.h               \
 	complextype.h          \
+	edifactparser.h        \
 	ediparse.h             \
 	hashtable.h            \
 	schema.h               \
@@ -22,6 +23,7 @@ edival_C_SOURCES =	\
 	common.c				\
 	complextype.c		\
 	ediparse.c			\
+	edifactparser.c   \
 	hashtable.c			\
 	schema.c				\
 	simpletype.c		\

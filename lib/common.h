@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Michael Edgar
+ *  Copyright (C) 2006, 2007 Michael Edgar
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ inline int string_eq(const char*, const char*);
 #define EDI_GAP_SCAN(parser, pointer) \
 	if((pointer - parser->bufReadPtr) > 0){\
 		int junk = 0, prefix = pointer - parser->bufReadPtr;\
-		for(char *search = parser->bufReadPtr; search < pointer; *search++){\
+		char *search;\
+		for(search = parser->bufReadPtr; search < pointer; *search++){\
 			if(!isspace(*search)){\
 				junk++;\
 			}\
