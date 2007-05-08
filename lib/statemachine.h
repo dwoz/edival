@@ -24,7 +24,7 @@
 struct EDI_StateMachineStruct;
 typedef struct EDI_StateMachineStruct *EDI_StateMachine;
 
-EDI_StateMachine EDI_StateMachineCreate(const EDI_Memory_Handling_Suite *);
+EDI_StateMachine EDI_StateMachineCreate();
 void             EDI_AddState(EDI_StateMachine, EDI_StateHandler, int);
 void             EDI_RemoveState(EDI_StateMachine, EDI_StateHandler, int);
 void             EDI_SetStartState(EDI_StateMachine, EDI_StateHandler);

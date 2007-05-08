@@ -24,19 +24,19 @@ size_t EDI_strnlen(const char *string, size_t maxlen)
   return end ? (size_t) (end - string) : maxlen;
 }
 /******************************************************************************/
-char *EDI_strndup(const char *s, size_t n, const EDI_Memory_Handling_Suite *memsuite)
+char *EDI_strndup(const char *s, size_t n)
 {
     size_t len = EDI_strnlen(s, n);
-    char *new = memsuite->malloc_fcn(len + 1);
+    char *new = malloc(len + 1);
 
     if(new == NULL){
         return NULL;
     }
     new[len] = '\0';
-    return (char *) memcpy(new, s, len);
+    return (char*)memcpy(new, s, len);
 }
 /******************************************************************************/
-inline int string_eq(const char* str1, const char* str2)
+inline EDI_Bool string_eq(const char* str1, const char* str2)
 {
 	while(!((*str1++) ^ (*str2++))){
 		if(!(*str1) && !(*str2)){

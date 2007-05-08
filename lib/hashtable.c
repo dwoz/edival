@@ -1,6 +1,7 @@
 /* Copyright (C) 2004 Christopher Clark <firstname.lastname@cl.cam.ac.uk> */
 
 #include "hashtable.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -235,22 +236,18 @@ hashtable_search(struct hashtable *h, void *k)
 void * /* returns value associated with key */
 hashtable_remove(struct hashtable *h, void *k)
 {
-    /* TODO: consider compacting the table when the load factor drops enough,
-     *       or provide a 'compact' method. */
-
     struct entry *e;
     struct entry **pE;
     void *v;
     unsigned int hashvalue, index;
 
     hashvalue = hash(h,k);
-    /*index = indexFor(h->tablelength,hash(h,k));*/
     index = indexFor(h->tablelength,hashvalue);
     pE = &(h->table[index]);
     e = *pE;
     while (NULL != e){
         /* Check hash value to short circuit heavier comparison */
-        if ((hashvalue == e->h) && (string_eq(k, e->k))){
+        if((hashvalue == e->h) && (string_eq(k, e->k))){
             *pE = e->next;
             h->entrycount--;
             v = e->v;
@@ -287,7 +284,7 @@ hashtable_destroy(struct hashtable *h, int free_values)
         for (i = 0; i < h->tablelength; i++){
             e = table[i];
             while(NULL != e){
-            	f = e; 	
+            	f = e;
             	freekey(f->k);
             	e = e->next;
             	free(f);

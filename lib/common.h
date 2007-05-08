@@ -29,14 +29,10 @@
 /******************************************************************************/
 typedef void* (*EDI_StateHandler)(void *parser);
 /******************************************************************************/
-#define MALLOC(obj, s) (obj->memsuite->malloc_fcn((s)))
-#define REALLOC(obj, p,s) (obj->memsuite->realloc_fcn((p),(s)))
-#define FREE(obj, p) (obj->memsuite->free_fcn((p)))
-/******************************************************************************/
 size_t EDI_strnlen (const char *, size_t);
 char  *EDI_strdup(const char *);
-char  *EDI_strndup(const char *, size_t, const EDI_Memory_Handling_Suite *);
-inline int string_eq(const char*, const char*);
+char  *EDI_strndup(const char *, size_t);
+inline EDI_Bool string_eq(const char*, const char*);
 
 #define EDI_GAP_SCAN(parser, pointer) \
 	if((pointer - parser->bufReadPtr) > 0){\
@@ -48,13 +44,13 @@ inline int string_eq(const char*, const char*);
 			}\
 		}\
 		if(junk){\
-			char *garbage = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);\
+			char *garbage = EDI_strndup(parser->bufReadPtr, prefix);\
 			if(!garbage){\
 				parser->errorCode = EDI_ERROR_NO_MEM;\
 				return parser->error;\
 			}\
 			parser->nonEDIDataHandler(parser->userData, garbage);\
-			FREE(parser, garbage);\
+			free(garbage);\
         	parser->bufReadPtr = pointer;\
 		}\
 	}

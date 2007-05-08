@@ -16,7 +16,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-//gcc scan997.c -std=c99 -I../include -L../lib -lm -ledival -o scan997
+//gcc scan997.c -I../include -L../lib -lm -ledival -o scan997
 
 #include <edival.h>
 #include <stdio.h>
@@ -30,10 +30,9 @@
 #define BUFF_SIZE 16777216
 
 int group_start = 0;
-int counter = 0;
 int depth = 0;
 char prefix[50];
-char curr_seg[4];
+char curr_seg[8];
 int  curr_e = 0;
 int  curr_c = 0;
 int  is_comp = 0;
@@ -55,15 +54,16 @@ void handleElementError(void *myData, int element, int component, enum EDI_Eleme
 
 void handleLoopStart(void *myData, const char *loopID)
 {
-	fprintf(stdout, "%s<%s>\n", prefix, loopID);
+	int i;
+
+	fprintf(stdout, "%s<loop type=\"%s\">\n", prefix, loopID);
 	depth++;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
 	if(strcmp("group", loopID) == 0){
 		group_start = 1;
-		counter = 0;
 		type_ok = 0;
 		EDI_Schema s = EDI_GetSchema((EDI_Parser)myData);
 	}	
@@ -72,12 +72,15 @@ void handleLoopStart(void *myData, const char *loopID)
 
 void handleLoopEnd(void *myData, const char *loopID)
 {
+	int i;
+	
 	depth--;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
-	fprintf(stdout, "%s</%s>\n", prefix, loopID);
+	/*fprintf(stdout, "%s</%s>\n", prefix, loopID);*/
+	fprintf(stdout, "%s</loop>\n", prefix);
 	if(strcmp("group", loopID) == 0){
 		EDI_Schema s = EDI_GetSchema((EDI_Parser)myData);
 	}
@@ -213,7 +216,7 @@ void load_basic_standards(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_STRING, "455", 1, 2);
 
 		hold = EDI_CreateElementType(s, EDI_DATA_STRING, "479", 2, 2);
-		/*EDI_AddElementValue(hold, "AA");
+		EDI_AddElementValue(hold, "AA");
 		EDI_AddElementValue(hold, "AB");
 		EDI_AddElementValue(hold, "AC");
 		EDI_AddElementValue(hold, "AD");
@@ -472,7 +475,7 @@ void load_basic_standards(EDI_Parser p)
 		EDI_AddElementValue(hold, "WI");
 		EDI_AddElementValue(hold, "WL");
 		EDI_AddElementValue(hold, "WR");
-		EDI_AddElementValue(hold, "WT");*/
+		EDI_AddElementValue(hold, "WT");
 		EDI_CreateElementType(s, EDI_DATA_STRING, "480", 1, 12);
 
 		hold = EDI_CreateComplexType(s, EDITYPE_SEGMENT, "ISA");
@@ -553,7 +556,7 @@ void load_standard(EDI_Parser p)
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "my143", 3, 3);
 		EDI_AddElementValue(parent, "997");
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "143", 3, 3);
-		/*EDI_AddElementValue(parent, "100");
+		EDI_AddElementValue(parent, "100");
 		EDI_AddElementValue(parent, "101");
 		EDI_AddElementValue(parent, "102");
 		EDI_AddElementValue(parent, "103");
@@ -870,19 +873,19 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "996");
 		EDI_AddElementValue(parent, "997");
 		EDI_AddElementValue(parent, "998");
-		EDI_AddElementValue(parent, "999");*/
+		EDI_AddElementValue(parent, "999");
 		EDI_CreateElementType(s, EDI_DATA_STRING, "329", 4, 9);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "447", 1, 4);
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "715", 1, 1);
-		/*EDI_AddElementValue(parent, "A");
+		EDI_AddElementValue(parent, "A");
 		EDI_AddElementValue(parent, "E");
 		EDI_AddElementValue(parent, "M");
 		EDI_AddElementValue(parent, "P");
 		EDI_AddElementValue(parent, "R");
 		EDI_AddElementValue(parent, "W");
-		EDI_AddElementValue(parent, "X");*/
+		EDI_AddElementValue(parent, "X");
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "716", 1, 3);
-		/*EDI_AddElementValue(parent, "1");
+		EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
@@ -901,16 +904,16 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "23");
 		EDI_AddElementValue(parent, "24");
 		EDI_AddElementValue(parent, "25");
-		EDI_AddElementValue(parent, "26");*/
+		EDI_AddElementValue(parent, "26");
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "717", 1, 1);
-		/*EDI_AddElementValue(parent, "A");
+		EDI_AddElementValue(parent, "A");
 		EDI_AddElementValue(parent, "E");
 		EDI_AddElementValue(parent, "M");
 		EDI_AddElementValue(parent, "R");
 		EDI_AddElementValue(parent, "W");
-		EDI_AddElementValue(parent, "X");*/
+		EDI_AddElementValue(parent, "X");
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "718", 1, 3);
-		/*EDI_AddElementValue(parent, "1");
+		EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
@@ -932,21 +935,21 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "24");
 		EDI_AddElementValue(parent, "25");
 		EDI_AddElementValue(parent, "26");
-		EDI_AddElementValue(parent, "27");*/
+		EDI_AddElementValue(parent, "27");
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "719", 1, 10);
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "720", 1, 3);
-		/*EDI_AddElementValue(parent, "1");
+		EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
 		EDI_AddElementValue(parent, "5");
 		EDI_AddElementValue(parent, "6");
 		EDI_AddElementValue(parent, "7");
-		EDI_AddElementValue(parent, "8");*/
+		EDI_AddElementValue(parent, "8");
 		EDI_CreateElementType(s, EDI_DATA_STRING, "721", 2, 3);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "722", 1, 2);
 		parent = EDI_CreateElementType(s, EDI_DATA_STRING, "723", 1, 3);
-		/*EDI_AddElementValue(parent, "1");
+		EDI_AddElementValue(parent, "1");
 		EDI_AddElementValue(parent, "2");
 		EDI_AddElementValue(parent, "3");
 		EDI_AddElementValue(parent, "4");
@@ -957,7 +960,7 @@ void load_standard(EDI_Parser p)
 		EDI_AddElementValue(parent, "9");
 		EDI_AddElementValue(parent, "10");
 		EDI_AddElementValue(parent, "12");
-		EDI_AddElementValue(parent, "13");*/
+		EDI_AddElementValue(parent, "13");
 		EDI_CreateElementType(s, EDI_DATA_STRING, "724", 1, 99);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "725", 1, 4);
 		EDI_CreateElementType(s, EDI_DATA_INTEGER, "1528", 1, 2);
@@ -1050,10 +1053,14 @@ void load_standard(EDI_Parser p)
 
 void handleDocumentStart(void *myData, enum EDI_DocumentType type)
 {
+	int i;
+	
+	fprintf(stdout, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
+	fprintf(stdout, "<?xml-stylesheet type=\"text/xsl\" href=\"claimreport.xslt\"?>\n");
 	fprintf(stdout, "%s<document>\n", prefix);
 	depth++;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
 	return;
@@ -1061,9 +1068,11 @@ void handleDocumentStart(void *myData, enum EDI_DocumentType type)
 
 void handleDocumentEnd(void *myData)
 {
+	int i;
+
 	depth--;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
 	fprintf(stdout, "%s</document>\n", prefix);
@@ -1072,7 +1081,15 @@ void handleDocumentEnd(void *myData)
 
 void handleSegmentStart(void *myData, const char *tag)
 {
-	fprintf(stdout, "%sSeg: %3s ->", prefix, tag);
+	int i;
+
+	/*fprintf(stdout, "%sSeg: %3s ->", prefix, tag);*/
+	fprintf(stdout, "%s<segment type=\"%s\">\n", prefix, tag);
+	depth++;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
 	strcpy(curr_seg, tag);
 	curr_e = 0;
 	return;
@@ -1080,54 +1097,84 @@ void handleSegmentStart(void *myData, const char *tag)
 
 void handleSegmentEnd(void *myData, const char *tag)
 {
-    fprintf(stdout, " <- End %s\n", tag);
-    return;
+	int i;
+
+	depth--;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	/*fprintf(stdout, " <- End %s\n", tag);*/
+	fprintf(stdout, "%s</segment>\n", prefix);
+	return;
 }
 
 void handleCompositeStart(void *myData)
 {
+	int i;
+	char name[6];
+
 	curr_e++;
 	curr_c = 0;
 	is_comp = 1;
-	fprintf(stdout, "{");
+	/*fprintf(stdout, "{");*/
+	
+	sprintf(name, "%s%2.2d", curr_seg, curr_e);
+	fprintf(stdout, "%s<composite usage=\"%s\">\n", prefix, name);
+	depth++;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
 	return;
 }
 
 void handleCompositeEnd(void *myData)
 {
-    fprintf(stdout, "}");
-    is_comp = 0;
-    return;
+	int i;
+
+    /*fprintf(stdout, "}");*/
+	depth--;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	fprintf(stdout, "%s</composite>\n", prefix);
+	is_comp = 0;
+	return;
 }
 
 void handleElement(void *myData, EDI_DataElement element)
 {
 	const char *string;
+	char name[9];
 
-	counter++;
+	if(is_comp){
+		sprintf(name, "%s%2.2d-%d", curr_seg, curr_e, ++curr_c);
+	} else {
+		sprintf(name, "%s%2.2d", curr_seg, ++curr_e);
+	}
 	switch(element->type){
 		case EDI_DATA_INTEGER:
 		case EDI_DATA_BINARY_SIZE:
-			fprintf(stdout, "[%d]", element->data.integer);
+			/*fprintf(stdout, "[%d]", element->data.integer);*/
+			fprintf(stdout, "%s<element name=\"%s\" value=\"%d\"/>\n", prefix, name, element->data.integer);
 			break;
 		case EDI_DATA_DECIMAL:
-			fprintf(stdout, "[%ld]", element->data.decimal);
+			/*fprintf(stdout, "[%ld]", element->data.decimal);*/
+			fprintf(stdout, "%s<element name=\"%s\" value=\"%ld\"/>\n", prefix, name, element->data.decimal);
 			break;
 		default:
-			fprintf(stdout, "[%s]", element->data.string);
-			if(is_comp){
-				curr_c++;
-			} else {
-				curr_e++;
-			}
+			/*fprintf(stdout, "[%s]", element->data.string);*/
+			fprintf(stdout, "%s<element name=\"%s\" value=\"%s\"/>\n", prefix, name, element->data.string);
 			if(group_start){
-				if(counter == 1){
+				if(curr_e == 1){
 					if(strcmp("FA", element->data.string) == 0){
 						type_ok = 1;
 					} else {
 						fprintf(stderr, "*** Type not 'FA': No transaction-level validation will be performed on this functional group.\n");
 					}
-				} else if(counter == 8){
+				} else if(curr_e == 8){
 					if(type_ok){
 						if((strncmp("005010", element->data.string, 6) == 0)){
 							load_standard((EDI_Parser)myData);

@@ -2,7 +2,7 @@
 
 INCLUDES =
 
-AM_CFLAGS = -O3 -fomit-frame-pointer -Wall -c -fmessage-length=0
+AM_CFLAGS = -O3 -Wall -g -c -fmessage-length=0
 
 lib_LTLIBRARIES = libedival.la
 

@@ -26,15 +26,15 @@ EDI_SchemaNode EDI_CreateComplexType(EDI_Schema         schema,
 	EDI_ComplexType node = NULL;
 	
 	if(type == EDITYPE_LOOP || type == EDITYPE_DOCUMENT){
-		node = MALLOC(schema, sizeof(struct EDI_LoopNodeStruct));
+		node = malloc(sizeof(struct EDI_LoopNodeStruct));
 	} else {
-		node = MALLOC(schema, sizeof(struct EDI_ComplexTypeStruct));
+		node = malloc(sizeof(struct EDI_ComplexTypeStruct));
 	}
 	if(!node){
 		return NULL;
 	}
 	node->header.type = type;
-	node->header.nodeID = EDI_strndup(id, strlen(id), schema->memsuite);
+	node->header.nodeID = EDI_strndup(id, strlen(id));
 	node->header.refCount = 0;
 	node->header.schema = schema;
 
@@ -83,8 +83,8 @@ EDI_Bool EDI_AddSyntaxNote(EDI_SchemaNode       node    ,
 
 	if(node->type == EDITYPE_SEGMENT || node-> type == EDITYPE_COMPOSITE){
 		cNode = (EDI_ComplexType)node;
-		note = MALLOC(node->schema, sizeof(struct EDI_SyntaxNoteStruct));
-		positions = MALLOC(node->schema, sizeof(unsigned int) * count);
+		note = malloc(sizeof(struct EDI_SyntaxNoteStruct));
+		positions = malloc(sizeof(unsigned int) * count);
 		if(note && positions){
 			note->type = type;
 			for(i = 0; i < count; i++){
@@ -129,7 +129,7 @@ static EDI_SchemaNode EDI_RemoveChild(EDI_ComplexType parent,
 	    } else if(child->previousSibling){
 	        child->previousSibling->nextSibling = child->nextSibling;
 	    }
-	    FREE(parent->header.schema, child);
+	    free(child);
 	    parent->childCount--;
 	    detached->refCount--;
     }
@@ -182,7 +182,7 @@ EDI_SchemaNode EDI_AppendType(EDI_SchemaNode parent    ,
     	default:
     		return NULL;
     }
-    childMeta = MALLOC(parent->schema, sizeof(struct EDI_ChildNodeStruct));
+    childMeta = malloc(sizeof(struct EDI_ChildNodeStruct));
     if(!childMeta){
     	parent->schema->parser->errorCode = EDI_ERROR_NO_MEM;
     	return NULL;
@@ -255,7 +255,7 @@ EDI_SchemaNode EDI_InsertType(EDI_SchemaNode parent    ,
     	default:
     		return NULL;
     }
-    childMeta = MALLOC(parent->schema, sizeof(struct EDI_ChildNodeStruct));
+    childMeta = malloc(sizeof(struct EDI_ChildNodeStruct));
     if(!childMeta){
     	parent->schema->parser->errorCode = EDI_ERROR_NO_MEM;
     	return NULL;
@@ -295,65 +295,58 @@ EDI_SchemaNode EDI_InsertType(EDI_SchemaNode parent    ,
 	return parent;
 }
 /******************************************************************************/
-EDI_SchemaNode* EDI_GetChildNodes(EDI_SchemaNode  node,
-                                  unsigned int   *argc,
-                                  unsigned int   **min,
-                                  unsigned int   **max)
+unsigned int EDI_GetChildCount(EDI_SchemaNode node)
 {
-	EDI_SchemaNode *children = NULL;
-	unsigned int *min_occurs, *max_occurs;
-	
-	*argc = 0;
+	return ((EDI_ComplexType)node)->childCount;
+}
+/******************************************************************************/
+void EDI_GetChildNodes(EDI_SchemaNode  node,
+                       EDI_SchemaNode *list,
+                       unsigned int   *min ,
+                       unsigned int   *max )
+{
 	if(node->type !=EDITYPE_ELEMENT){
 		EDI_ComplexType parent = (EDI_ComplexType)node;
 		if(parent && parent->childCount > 0){
-			children = MALLOC(
-				node->schema, 
-				sizeof(struct EDI_SchemaNodeStruct) * parent->childCount
-			);
-			min_occurs = MALLOC(node->schema, sizeof(int) * parent->childCount);
-			max_occurs = MALLOC(node->schema, sizeof(int) * parent->childCount);
 			int i;
 			EDI_ChildNode child = parent->firstChild;
 			for(i = 0; child; i++){
-				children[i] = child->node;
-				min_occurs[i] = child->min_occurs;
-				max_occurs[i] = child->max_occurs;
+				list[i] = child->node;
+				min[i] = child->min_occurs;
+				max[i] = child->max_occurs;
 				child = child->nextSibling;
 			}
-			*argc = parent->childCount;
-			*min = min_occurs;
-			*max = max_occurs;
 		}
 	}
-	return children;
+	return;
 }
 /******************************************************************************/
 void EDI_DisposeComplexType(EDI_ComplexType node)
 {
 	EDI_SchemaNode child;
+	
+	/*fprintf(stderr, "Entering EDI_DisposeComplexType %s\n", node->header.nodeID);*/
 	if(node && node->header.refCount == 0){
 		while(node->childCount > 0){
 			child = EDI_RemoveChild(node, node->firstChild);
 			EDI_DisposeNode(child);
 		}
 		if(node->header.nodeID){
-			FREE(node->header.schema, node->header.nodeID);
+			free(node->header.nodeID);
 		}
 		if(node->firstNote){
 			EDI_SyntaxNote note = node->firstNote;
 			while(note){
 				EDI_SyntaxNote next = note->next;
-				FREE(node->header.schema, note->positions);
-				FREE(node->header.schema, note);
+				free(note->positions);
+				free(note);
 				note = next;
 			}
-		}		
-		if(node->header.type == EDITYPE_LOOP || node->header.type == EDITYPE_DOCUMENT){
-			EDI_LoopNode l = (EDI_LoopNode)node;
-			FREE(node->header.schema, l->startID);
 		}
-		FREE(node->header.schema, node);
+		if(node->header.type == EDITYPE_LOOP || node->header.type == EDITYPE_DOCUMENT){
+			free(((EDI_LoopNode)node)->startID);
+		}
+		free(node);
 	}
 	return;
 }

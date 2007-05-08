@@ -40,11 +40,11 @@ static int seekState(EDI_StateMachine self, EDI_StateHandler h)
 	return -1;
 }
 /******************************************************************************/
-EDI_StateMachine EDI_StateMachineCreate(const EDI_Memory_Handling_Suite *suite)
+EDI_StateMachine EDI_StateMachineCreate()
 {
 	int i;
-	EDI_StateMachine new = NULL;
-	new = suite->malloc_fcn(sizeof(struct EDI_StateMachineStruct));
+	EDI_StateMachine new = malloc(sizeof(struct EDI_StateMachineStruct));
+
 	if(new){
 		new->startState  = NULL;
 		new->resumeState = NULL;

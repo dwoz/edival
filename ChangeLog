@@ -1,3 +1,16 @@
+2007-01-24:
+	-schema.c : 
+		-fix callback for too many elements/components error.
+		-force element callback for blank or unsent elements when in validation mode.
+	-simpletype.c: 
+		-fix string character check error
+
+2007-01-21:
+	-*.[ch]:
+		-Remove ability for the caller to set memory functions.  All memory
+		allocation and release within the library will be handled using the 
+		standard C functions.  I.e., EDI_ParserCreate_MM has been removed.
+
 2007-01-10:
 	-edifactparser.[ch]:
 		-Hide data declarations from edifactparser.h in edifactparser.c.

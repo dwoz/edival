@@ -388,9 +388,9 @@ EDI_StateHandler EDIFACT_ProcessMessage(EDI_Parser parser)
 		}
 		if(EDI_PARSER->binaryElementSize){
 			if(EDI_PARSER->binBuffer){
-				FREE(parser, EDI_PARSER->binBuffer);
+				free(EDI_PARSER->binBuffer);
 			}
-			EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
+			EDI_PARSER->binBuffer = malloc(EDI_PARSER->binaryElementSize * sizeof(char));
 	    	if(EDIFACT_PARSER->savedTag){
 	    		free(EDIFACT_PARSER->savedTag);
 	    	}
@@ -553,10 +553,10 @@ EDI_StateHandler EDIFACT_ProcessTrailer(EDI_Parser parser)
 EDIFACT_Parser EDIFACT_ParserCreate(EDI_Parser parent)
 {
 	EDIFACT_Parser new = NULL;
-	new = MALLOC(parent, sizeof(struct EDIFACT_ParserStruct));
+	new = malloc(sizeof(struct EDIFACT_ParserStruct));
 	if(new){
 		memset(new, 0, sizeof(struct EDIFACT_ParserStruct));
-		new->data                   = MALLOC(parent, sizeof(struct EDI_DataElementStruct));
+		new->data                   = malloc(sizeof(struct EDI_DataElementStruct));
 		new->tok.token              = malloc(sizeof(char) * 100);
 		new->tok.capacity           = 100;
 		parent->process             = (void *)EDIFACT_ProcessHeader;
@@ -581,7 +581,7 @@ void EDIFACT_ParserDestroy(EDI_Parser parser)
 		free(EDIFACT_PARSER->savedTag);
 	}
 	free(EDIFACT_PARSER->tok.token);
-	FREE(parser, EDIFACT_PARSER->data);
-	FREE(parser, EDIFACT_PARSER);
+	free(EDIFACT_PARSER->data);
+	free(EDIFACT_PARSER);
 	EDI_PARSER->child = NULL;
 }

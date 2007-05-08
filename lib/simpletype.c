@@ -26,12 +26,15 @@ EDI_SchemaNode EDI_CreateElementType(EDI_Schema                  schema,
 {
 	EDI_SimpleType *node = NULL;
 	
-	node = MALLOC(schema, sizeof(EDI_SimpleType));
+	if((node = (EDI_SimpleType*)hashtable_search(schema->elements, (void *)id))){
+		EDI_DisposeSimpleType((EDI_SchemaNode)node);
+	}
+	node = malloc(sizeof(EDI_SimpleType));
 	if(!node){
 		return NULL;
 	}
 	node->header.type = EDITYPE_ELEMENT;
-	node->header.nodeID = EDI_strndup(id, strlen(id), schema->memsuite);
+	node->header.nodeID = EDI_strndup(id, strlen(id));
 	node->header.refCount = 0;
 	node->header.schema = schema;
 	node->type = type;
@@ -71,12 +74,17 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_SchemaNode  node ,
                                                     const char     *value)
 {
 	EDI_SimpleType *element = (EDI_SimpleType *)node;
-	enum EDI_ElementValidationError error   = VAL_UNKNOWN_ELEMENT;
+	enum EDI_ElementValidationError error   = VAL_VALID_ELEMENT;
+	enum EDI_ElementValidationError *errors = NULL;
 	
 	if(node->type != EDITYPE_ELEMENT){
 		error = VAL_UNKNOWN_ELEMENT;
 	} else if(element){
-		error = EDI_CheckElementConstraints(element, value, strlen(value), NULL);
+		errors = EDI_CheckElementConstraints(element, value, strlen(value), NULL);
+		if(errors){
+			error = errors[0];
+			free(errors);
+		}		
 		if(!error || error == VAL_CODE_ERROR){
 			if(!element->values){
 				element->values = create_hashtable(20);
@@ -85,11 +93,12 @@ enum EDI_ElementValidationError EDI_AddElementValue(EDI_SchemaNode  node ,
 				error = VAL_VALID_ELEMENT;
 			}
 		}
+		
 	}
 	return error;
 }
 /******************************************************************************/
-enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *element,
+enum EDI_ElementValidationError *EDI_CheckElementConstraints(EDI_SimpleType *element,
                                                             const char     *value  ,
                                                             int             length ,
                                                             EDI_DataElement results)
@@ -99,23 +108,30 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 	long long         llvalue  = 0;
 	long double       ldvalue  = 0.0;
 	long              i        = 0;
+	int               errCount = 0;
+	enum EDI_ElementValidationError *errors;
 	
+	errors = malloc(5 * sizeof(enum EDI_ElementValidationError));
 	if(element){
 		switch(element->type){
 			case EDI_DATA_STRING:
 				if(length > element->max){
-					return VAL_RANGE_HIGH;
+					errors[errCount++] = VAL_RANGE_HIGH;
+					//return VAL_RANGE_HIGH;
 				} else if(length < element->min){
-					return VAL_RANGE_LOW;
+					errors[errCount++] = VAL_RANGE_LOW;
+					//return VAL_RANGE_LOW;
 				}
 				if(element->values){
 					if(! hashtable_search(element->values, (void *)value)){
-						return VAL_CODE_ERROR;
+						errors[errCount++] = VAL_CODE_ERROR;
+						//return VAL_CODE_ERROR;
 					}
 				} else {
-					for(i = 0; i < llvalue; i++){
+					for(i = 0; i < length; i++){
 						if(!isprint(value[i])){
-							return VAL_CHAR_ERROR;
+							errors[errCount++] = VAL_CHAR_ERROR;
+							//return VAL_CHAR_ERROR;
 						}
 					}
 				}
@@ -125,15 +141,18 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 					length--;
 				}
 				if(length > element->max){
-					return VAL_RANGE_HIGH;
+					errors[errCount++] = VAL_RANGE_HIGH;
+					//return VAL_RANGE_HIGH;
 				} else if(length < element->min){
-					return VAL_RANGE_LOW;
+					errors[errCount++] = VAL_RANGE_LOW;
+					//return VAL_RANGE_LOW;
 				}
 				llvalue = strtoll(value, &invalid, 10);
 				if(value[0] == '\0' || *invalid != '\0'){
-					return VAL_CHAR_ERROR;
+					errors[errCount++] = VAL_CHAR_ERROR;
+					//return VAL_CHAR_ERROR;
 				}
-				if(results){
+				if(results && (!errCount || errors[errCount-1] != VAL_CHAR_ERROR)){
 					results->type = EDI_DATA_INTEGER;
 					results->data.integer = llvalue;
 				}
@@ -147,37 +166,47 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 				}
 				for(i = 0;*check;check++){
 					if(!isdigit(*check) && *check != '.'){
-						return VAL_CHAR_ERROR;
+						errors[errCount++] = VAL_CHAR_ERROR;
+						//return VAL_CHAR_ERROR;
 					} else if(*check == '.' && ++i > 1){
-						return VAL_CHAR_ERROR;
+						errors[errCount++] = VAL_CHAR_ERROR;
+						//return VAL_CHAR_ERROR;
 					}
 				}
 				length -= i;
 				if(length > element->max){
-					return VAL_RANGE_HIGH;
+					errors[errCount++] = VAL_RANGE_HIGH;
+					//return VAL_RANGE_HIGH;
 				} else if(length < element->min){
-					return VAL_RANGE_LOW;
+					errors[errCount++] = VAL_RANGE_LOW;
+					//return VAL_RANGE_LOW;
 				}
 				ldvalue = strtold(value, &invalid);
 				if(value == invalid || *invalid != '\0'){
-					return VAL_CHAR_ERROR;
+					errors[errCount++] = VAL_CHAR_ERROR;
+					//return VAL_CHAR_ERROR;
 				}
-				if(results){
+				if(results && (!errCount || errors[errCount-1] != VAL_CHAR_ERROR)){
 					results->type = EDI_DATA_DECIMAL;
 					results->data.decimal = ldvalue;
 				}
 				break;
 			case EDI_DATA_DATE:
 				if(length > element->max){
-					return VAL_RANGE_HIGH;
+					errors[errCount++] = VAL_RANGE_HIGH;
+					//return VAL_RANGE_HIGH;
 				} else if(length < element->min){
-					return VAL_RANGE_LOW;
+					errors[errCount++] = VAL_RANGE_LOW;
+					//return VAL_RANGE_LOW;
 				} else if(length % 2){
-					return VAL_DATE_ERROR;
+					errors[errCount++] = VAL_DATE_ERROR;
+					//return VAL_DATE_ERROR;
 				}
 				llvalue = strtoll(value, &invalid, 10);
-				if(value[0] == '\0' || *invalid != '\0'){
-					return VAL_DATE_ERROR;
+				if(value[0] == '\0' || *invalid != '\0' || llvalue < 1){
+					errors[errCount++] = VAL_DATE_ERROR;
+					break;
+					//return VAL_DATE_ERROR;
 				}
 				long date[] = {0, 0, 0};
 				date[2] = llvalue % 100;
@@ -194,20 +223,26 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 					date[0] += llvalue * 100;	
 				}
 				if(!DATE_IS_VALID(date[0], date[1], date[2])){
-					return VAL_DATE_ERROR;
+					errors[errCount++] = VAL_DATE_ERROR;
+					//return VAL_DATE_ERROR;
 				}
 				break;
 			case EDI_DATA_TIME:
 				if(length > element->max){
-					return VAL_RANGE_HIGH;
+					errors[errCount++] = VAL_RANGE_HIGH;
+					//return VAL_RANGE_HIGH;
 				} else if(length < element->min){
-					return VAL_RANGE_LOW;
+					errors[errCount++] = VAL_RANGE_LOW;
+					//return VAL_RANGE_LOW;
 				} else if(length % 2){
-					return VAL_TIME_ERROR;
+					errors[errCount++] = VAL_TIME_ERROR;
+					//return VAL_TIME_ERROR;
 				}
 				llvalue = strtoll(value, &invalid, 10);
-				if(value[0] == '\0' || *invalid != '\0'){
-					return VAL_TIME_ERROR;
+				if(value[0] == '\0' || *invalid != '\0' || llvalue < 1){
+					errors[errCount++] = VAL_TIME_ERROR;
+					break;
+					//return VAL_TIME_ERROR;
 				}
 				long time[] = {0, 0, 0, 0};
 				for(i = length; i > 0; i-=2){
@@ -217,7 +252,8 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 				if( (time[0] < 0) || (time[0] > 23) || 
 				    (time[1] < 0) || (time[1] > 59) || 
 				    (time[2] < 0) || (time[2] > 59) || (time[3] < 0)){
-					return VAL_TIME_ERROR;
+				    errors[errCount++] = VAL_TIME_ERROR;
+					//return VAL_TIME_ERROR;
 				}				
 				break;
 			case EDI_DATA_BINARY_SIZE: /* Same code as integer, only save to the parser. */
@@ -225,16 +261,19 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 					length--;
 				}
 				if(length > element->max){
-					return VAL_RANGE_HIGH;
+					errors[errCount++] = VAL_RANGE_HIGH;
+					//return VAL_RANGE_HIGH;
 				} else if(length < element->min){
-					return VAL_RANGE_LOW;
+					errors[errCount++] = VAL_RANGE_LOW;
+					//return VAL_RANGE_LOW;
 				}
 				llvalue = strtoll(value, &invalid, 10);
 				if(value[0] == '\0' || *invalid != '\0'){
-					return VAL_CHAR_ERROR;
+					errors[errCount++] = VAL_CHAR_ERROR;
+					//return VAL_CHAR_ERROR;
 				}
 				element->header.schema->parser->binaryElementSize = llvalue;
-				if(results){
+				if(results && (!errCount || errors[errCount-1] != VAL_CHAR_ERROR)){
 					results->type = EDI_DATA_INTEGER;
 					results->data.integer = llvalue;
 				}
@@ -242,12 +281,21 @@ enum EDI_ElementValidationError EDI_CheckElementConstraints(EDI_SimpleType *elem
 			case EDI_DATA_BINARY:
 				break;
 			default:
-				return VAL_UNKNOWN_ELEMENT;
+				errors[errCount++] = VAL_UNKNOWN_ELEMENT;
+				//return VAL_UNKNOWN_ELEMENT;
 				break;
 		}
-		return VAL_VALID_ELEMENT;
+		//return VAL_VALID_ELEMENT;
 	} else {
-		return VAL_UNKNOWN_ELEMENT;
+		errors[errCount++] = VAL_UNKNOWN_ELEMENT;
+		//return VAL_UNKNOWN_ELEMENT;
+	}
+	if(errCount > 0){
+		errors[errCount] = 0;
+		return errors;
+	} else {
+		free(errors);
+		return NULL;
 	}
 }
 /******************************************************************************/
@@ -257,18 +305,18 @@ void EDI_DisposeSimpleType(EDI_SchemaNode node)
 	struct hashtable *table   = NULL;
 
 	if(node && node->refCount == 0){
-		/*table = schema->elements;*/
+		/*fprintf(stderr, "Entering EDI_DisposeSimpleType %s\n", node->nodeID);*/
 		table = node->schema->elements;
 		if(table){
 			element = (EDI_SimpleType*)hashtable_search(table, node->nodeID);
 			if(element && element->values){
+				/*fprintf(stderr, "About to destroy values for %s\n", node->nodeID);*/
 				hashtable_destroy(element->values, EDI_TRUE);
+				element->values = NULL;
 			}
 		}
-		/*FREE(schema, node->nodeID);
-		FREE(schema, node);*/
-		FREE(node->schema, node->nodeID);
-		FREE(node->schema, node);
+		free(node->nodeID);
+		free(node);
 	}
 	return;
 }

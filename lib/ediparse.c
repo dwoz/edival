@@ -24,7 +24,7 @@
 /******************************************************************************/
 #define INIT_DATA_BUF_SIZE 1024  /* 1KB default buffer size */
 /******************************************************************************/
-static EDI_Parser  parserCreate(EDI_Memory_Handling_Suite *);
+static EDI_Parser  parserCreate();
 static void        parserInit(EDI_Parser);
 /******************************************************************************/
 EDI_StateHandler seekHeader(EDI_Parser parser)
@@ -67,13 +67,13 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 			if((bufIter - parser->bufReadPtr) > 3){
 				int prefix = bufIter - parser->bufReadPtr - 3;
 				if(prefix > 1 || !isspace(*(parser->bufReadPtr))){
-					char *invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
+					char *invalid = EDI_strndup(parser->bufReadPtr, prefix);
 					if(!invalid){
 						parser->errorCode = EDI_ERROR_NO_MEM;
 						return parser->error;
 					}
 					parser->nonEDIDataHandler(parser->userData, invalid);
-					FREE(parser, invalid);
+					free(invalid);
 				}
 			}
 			parser->bufReadPtr = bufIter - 3;
@@ -84,13 +84,13 @@ EDI_StateHandler seekHeader(EDI_Parser parser)
 	}
 	if(parser->bufReadPtr < parser->bufEndPtr && bufIter == parser->bufEndPtr){
 		int prefix = bufIter - parser->bufReadPtr;
-		char *invalid = EDI_strndup(parser->bufReadPtr, prefix, parser->memsuite);
+		char *invalid = EDI_strndup(parser->bufReadPtr, prefix);
 		if(!invalid){
 			parser->errorCode = EDI_ERROR_NO_MEM;
 			return parser->error;
 		}
 		parser->nonEDIDataHandler(parser->userData, invalid);
-		FREE(parser, invalid);
+		free(invalid);
 		parser->bufReadPtr = bufIter;
 	}
 	parser->errorCode = EDI_ERROR_BUFFER_END;
@@ -108,49 +108,20 @@ EDI_Parser EDI_ParserCreate(void)
     return parserCreate(NULL);
 }
 /******************************************************************************/
-EDI_Parser EDI_ParserCreate_MM(EDI_Memory_Handling_Suite *memsuite)
-{
-    return parserCreate(memsuite);
-}   
-/******************************************************************************/
-static EDI_Parser parserCreate(EDI_Memory_Handling_Suite *memsuite)
+static EDI_Parser parserCreate()
 {
 	EDI_Parser parser;
 	
-	if(memsuite){
-        EDI_Memory_Handling_Suite *mtemp;
-        parser = (EDI_Parser)\
-            memsuite->malloc_fcn(sizeof(struct EDI_ParserStruct));
-        if (parser != NULL) {
-        	parser->memsuite = (EDI_Memory_Handling_Suite *)\
-        		memsuite->malloc_fcn(sizeof(EDI_Memory_Handling_Suite));
-            mtemp = (EDI_Memory_Handling_Suite *)parser->memsuite;
-            mtemp->malloc_fcn = memsuite->malloc_fcn;
-            mtemp->realloc_fcn = memsuite->realloc_fcn;
-            mtemp->free_fcn = memsuite->free_fcn;
-        }
-	} else {
-        EDI_Memory_Handling_Suite *mtemp;
-        parser = (EDI_Parser)malloc(sizeof(struct EDI_ParserStruct));
-        if (parser != NULL) {
-        	parser->memsuite = (EDI_Memory_Handling_Suite *)\
-        		malloc(sizeof(EDI_Memory_Handling_Suite));
-            mtemp = (EDI_Memory_Handling_Suite *)parser->memsuite;
-            mtemp->malloc_fcn = malloc;
-            mtemp->realloc_fcn = realloc;
-            mtemp->free_fcn = free;
-        }
+	parser = (EDI_Parser)malloc(sizeof(struct EDI_ParserStruct));
+	if(parser){
+		parser->dataBuffer = malloc(INIT_DATA_BUF_SIZE * sizeof(char));
+		if(!parser->dataBuffer){
+		   free(parser);
+		   return NULL;
+		}
+		parser->dataBufEnd = parser->dataBuffer + INIT_DATA_BUF_SIZE;
+		parserInit(parser);
 	}
-	if(!parser){
-	   return NULL;
-	}
-	parser->dataBuffer = MALLOC(parser, INIT_DATA_BUF_SIZE * sizeof(char));
-	if(!parser->dataBuffer){
-	   FREE(parser, parser);
-	   return NULL;
-	}
-	parser->dataBufEnd = parser->dataBuffer + INIT_DATA_BUF_SIZE;
-	parserInit(parser);
 	return parser;
 }
 /******************************************************************************/
@@ -242,14 +213,18 @@ void EDI_SetNonEDIDataHandler(EDI_Parser parser, EDI_NonEDIDataHandler h)
 /******************************************************************************/
 EDI_Bool EDI_ParserReset(EDI_Parser parser)
 {
-    FREE(parser, parser->dataBuffer);
-    FREE(parser, parser->machine);
+	if(parser->dataBuffer){
+		free(parser->dataBuffer);
+	}
+	if(parser->machine){
+		free(parser->machine);
+	}
 	if(parser->child){
 		parser->freeChild(parser);
 	}
-	parser->dataBuffer = MALLOC(parser, INIT_DATA_BUF_SIZE * sizeof(char *));
+	parser->dataBuffer = malloc(INIT_DATA_BUF_SIZE * sizeof(char *));
 	if(!parser->dataBuffer){
-	   FREE(parser, parser);
+	   free(parser);
 	   return EDI_FALSE;
 	}
 	parser->dataBufEnd = parser->dataBuffer + INIT_DATA_BUF_SIZE;
@@ -282,7 +257,7 @@ void *EDI_GetBuffer(EDI_Parser parser, int len)
             char *newBuf;
             int size = parser->dataBufEnd - parser->bufReadPtr;
             size += neededSize;
-            newBuf = (char *)MALLOC(parser, size);
+            newBuf = (char *)malloc(size);
             if(!newBuf){
                 parser->errorCode = EDI_ERROR_NO_MEM;
                 return NULL;
@@ -292,7 +267,7 @@ void *EDI_GetBuffer(EDI_Parser parser, int len)
                 memcpy(newBuf, 
                        parser->bufReadPtr, 
                        parser->bufEndPtr - parser->bufReadPtr);
-                FREE(parser, parser->dataBuffer);
+                free(parser->dataBuffer);
             }
             parser->bufEndPtr = newBuf + 
                                 (parser->bufEndPtr - parser->bufReadPtr);
@@ -457,25 +432,8 @@ enum EDI_Error EDI_GetErrorCode(EDI_Parser parser)
     return parser->errorCode;
 }
 /******************************************************************************/
-void *EDI_MemMalloc(EDI_Parser parser, size_t size)
-{
-	return MALLOC(parser, size);
-}
-/******************************************************************************/
-void *EDI_MemRealloc(EDI_Parser parser, void *pointer, size_t size)
-{
-	return REALLOC(parser, pointer, size);
-}
-/******************************************************************************/
-void EDI_MemFree(EDI_Parser parser, void *pointer)
-{
-	return FREE(parser, pointer);
-}
-/******************************************************************************/
 void EDI_ParserFree(EDI_Parser parser)
 {
-	void (*free_fcn)(void *ptr);
-
 	if(parser->schema){
 		EDI_RemoveSchema(parser);
 	}
@@ -483,11 +441,13 @@ void EDI_ParserFree(EDI_Parser parser)
 		parser->freeChild(parser);
 	}
 	if(parser->binBuffer){
-		FREE(parser, parser->binBuffer);
+		free(parser->binBuffer);
 	}
-	FREE(parser, parser->dataBuffer);
-	FREE(parser, parser->machine);
-	free_fcn = parser->memsuite->free_fcn;
-	free_fcn((void *)parser->memsuite);
-	free_fcn(parser);
+	if(parser->dataBuffer){
+		free(parser->dataBuffer);
+	}
+	if(parser->machine){
+		free(parser->machine);
+	}
+	free(parser);
 }

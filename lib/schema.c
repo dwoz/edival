@@ -29,69 +29,29 @@
                                    (schema->stack[schema->depth - 1])->node \
                                 ) : schema->root)
 /******************************************************************************/
-static EDI_Schema schemaCreate(
-	enum EDI_DocumentType      ,
-	const char *               , 
-	EDI_Memory_Handling_Suite *);
+static EDI_Schema schemaCreate(enum EDI_DocumentType,	const char *);
 static void schemaInit(EDI_Schema);
 /******************************************************************************/
 EDI_Schema EDI_SchemaCreate(enum EDI_DocumentType type)
 {
-	return schemaCreate(type, NULL, NULL);	
+	return schemaCreate(type, NULL);	
 }
 /******************************************************************************/
 EDI_Schema EDI_SchemaCreateNamed(enum EDI_DocumentType type, const char *name)
 {
-	return schemaCreate(type, name, NULL);	
-}
-/******************************************************************************/
-EDI_Schema EDI_SchemaCreate_MM(enum EDI_DocumentType type         , 
-                               EDI_Memory_Handling_Suite *memsuite)
-{
-	return schemaCreate(type, NULL, memsuite);
-}
-/******************************************************************************/
-EDI_Schema EDI_SchemaCreateNamed_MM(enum EDI_DocumentType      type    ,
-                                    const char                *name    ,
-                                    EDI_Memory_Handling_Suite *memsuite)
-{
-	return schemaCreate(type, name, memsuite);
+	return schemaCreate(type, name);	
 }
 /******************************************************************************/
 static EDI_Schema schemaCreate(enum EDI_DocumentType      type    ,
-                               const char                *name    ,
-                               EDI_Memory_Handling_Suite *memsuite)
+                               const char                *name    )
 {
 	EDI_Schema schema = NULL;
 	
-	if(memsuite){
-        EDI_Memory_Handling_Suite *mtemp;
-        schema = (EDI_Schema)\
-            memsuite->malloc_fcn(sizeof(struct EDI_SchemaStruct));
-        if (schema != NULL) {
-				schema->memsuite = (EDI_Memory_Handling_Suite *)\
-        			memsuite->malloc_fcn(sizeof(EDI_Memory_Handling_Suite));
-            mtemp = (EDI_Memory_Handling_Suite *)schema->memsuite;
-            mtemp->malloc_fcn = memsuite->malloc_fcn;
-            mtemp->realloc_fcn = memsuite->realloc_fcn;
-            mtemp->free_fcn = memsuite->free_fcn;
-        }
-	} else {
-        EDI_Memory_Handling_Suite *mtemp;
-        schema = (EDI_Schema)malloc(sizeof(struct EDI_SchemaStruct));
-        if (schema != NULL) {
-				schema->memsuite = (EDI_Memory_Handling_Suite *)\
-        			malloc(sizeof(EDI_Memory_Handling_Suite));
-            mtemp = (EDI_Memory_Handling_Suite *)schema->memsuite;
-            mtemp->malloc_fcn = malloc;
-            mtemp->realloc_fcn = realloc;
-            mtemp->free_fcn = free;
-        }
-	}
+	schema = (EDI_Schema)malloc(sizeof(struct EDI_SchemaStruct));
 	if(schema){
 		schemaInit(schema);
 		if(name){
-			schema->identifier = EDI_strndup(name, strlen(name), schema->memsuite);
+			schema->identifier = EDI_strndup(name, strlen(name));
 		}
 		if(type){
 			schema->documentType = type;
@@ -122,12 +82,12 @@ void EDI_SetDocumentRoot(EDI_Schema            schema,
                          EDI_SchemaNode        node  )
 {
 	if(schema->stack[0]){
-		FREE(schema, schema->stack[0]);
+		free(schema->stack[0]);
 		schema->stack[0] = NULL;
 	}
 	if(node->type == EDITYPE_DOCUMENT){
 		schema->root = (EDI_ComplexType)node;
-		EDI_ChildNode root = MALLOC(schema, sizeof(struct EDI_ChildNodeStruct));
+		EDI_ChildNode root = malloc(sizeof(struct EDI_ChildNodeStruct));
 		root->node = node;
 		root->previousSibling = NULL;
 		root->nextSibling = NULL;
@@ -173,10 +133,15 @@ void EDI_SetSchemaId(EDI_Schema schema, const char *id)
 {
 	if(schema){
 		if(schema->identifier){
-			FREE(schema, schema->identifier);
+			free(schema->identifier);
 		}
-		schema->identifier = EDI_strndup(id, strlen(id), schema->memsuite);
+		schema->identifier = EDI_strndup(id, strlen(id));
 	}
+}
+/******************************************************************************/
+char *EDI_GetSchemaNodeId(EDI_SchemaNode node)
+{
+	return node->nodeID;
 }
 /******************************************************************************/
 void EDI_SetLoopStartHandler(EDI_Schema schema, EDI_LoopStartHandler h)
@@ -210,7 +175,12 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 	enum EDI_SegmentValidationError error         = SEGERR_NONE;
 	char                           *mandatory[20];
 	
-	startNode = schema->stack[startDepth];
+	if(startDepth > 0){
+		startNode = schema->stack[startDepth];
+	} else {
+		startNode = schema->root->firstChild;
+		schema->depth++;
+	}
 	if(!startNode){
 		error = SEGERR_UNDEFINED;
 	} else {
@@ -307,7 +277,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 			if(current->nextSibling){
 				current = current->nextSibling;
 			} else {
-				if(schema->depth == startDepth){	
+				if(schema->depth == startDepth){
 					current = startNode->previousSibling;
 					while(current){
 						if(string_eq(nodeID, current->node->nodeID) &&
@@ -329,7 +299,7 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 					}
 					if(error) break;
 				} 
-				if(schema->depth > 0){
+				if(schema->depth > 1){
 					current = SCHEMA_POP();
 				} else {
 					current = schema->root->firstChild;
@@ -367,17 +337,18 @@ enum EDI_SegmentValidationError EDI_ValidateSegmentPosition(EDI_Schema  schema,
 /******************************************************************************/
 enum EDI_ElementValidationError EDI_ValidateElement(
 	EDI_Schema                  schema        ,
-   int                         elementIndex  , 
+	int                         elementIndex  , 
 	int                        *componentIndex, 
 	const char                 *value         ,
 	int                         length        ,
 	EDI_DataElement             results       )
 {
-	int                             index   = 0;
-	EDI_ChildNode                   clear   = NULL;
-	EDI_ChildNode                   segment = NULL;
-	EDI_ChildNode                   element = NULL;
-	enum EDI_ElementValidationError error   = VAL_VALID_ELEMENT;
+	int                              index   = 0;
+	EDI_ChildNode                    clear   = NULL;
+	EDI_ChildNode                    segment = NULL;
+	EDI_ChildNode                    element = NULL;
+	enum EDI_ElementValidationError  usageError        = VAL_VALID_ELEMENT;
+	enum EDI_ElementValidationError *constraintErrors  = NULL;
 	
 	if(elementIndex > 1){
 		element = schema->prevElementNode;
@@ -391,71 +362,95 @@ enum EDI_ElementValidationError EDI_ValidateElement(
 			}
 			schema->prevElementIndex = 1;	
 		} else {
-			error = VAL_INVALID_SEGMENT;
+			usageError = VAL_INVALID_SEGMENT;
 		}
 	}
-	if(!error){
+	if(!usageError){
 		for(index = schema->prevElementIndex; index < elementIndex; index++){
 			if(element->nextSibling){
 				element = element->nextSibling;
 			} else {
-				return VAL_TOO_MANY_ELEMENTS;
+				usageError = VAL_TOO_MANY_ELEMENTS;
 			}
 		}
-		schema->prevElementNode = element;
-		schema->prevElementIndex = index;
-		if(element->node->type == EDITYPE_COMPOSITE){
-			if(*componentIndex == 0 && length > 0){
-				*componentIndex = 1;
-			}
-		}
-		if(*componentIndex > 0){
-			if(element->node->type != EDITYPE_COMPOSITE){
-				return VAL_TOO_MANY_COMPONENTS;
-			} else {
-				EDI_ChildNode c = ((EDI_ComplexType)element->node)->firstChild;
-				if(*componentIndex == 1){
-					clear = c;
-					while(clear){
-						clear->count = 0;
-						clear = clear->nextSibling;
-					}
+		if(!usageError){
+			schema->prevElementNode = element;
+			schema->prevElementIndex = index;
+			if(element->node->type == EDITYPE_COMPOSITE){
+				if(*componentIndex == 0 && length > 0){
+					*componentIndex = 1;
 				}
-				for(index = 1; index < *componentIndex; index++){
-					if(c->nextSibling){
-						c = c->nextSibling;
-					} else {
-						return VAL_TOO_MANY_COMPONENTS;
-					}
-				}
-				element = c;
 			}
+			if(*componentIndex > 0){
+				if(element->node->type != EDITYPE_COMPOSITE){
+					usageError = VAL_TOO_MANY_COMPONENTS;
+				} else {
+					EDI_ChildNode c = ((EDI_ComplexType)element->node)->firstChild;
+					if(*componentIndex == 1){
+						clear = c;
+						while(clear){
+							clear->count = 0;
+							clear = clear->nextSibling;
+						}
+					}
+					for(index = 1; index < *componentIndex; index++){
+						if(c->nextSibling){
+							c = c->nextSibling;
+						} else {
+							usageError = VAL_TOO_MANY_COMPONENTS;
+						}
+					}
+					element = c;
+				}
+			}
+			/*if(!usageError){*/
+				if(length){
+					element->count++;
+					if(element->count > element->max_occurs){
+						if(schema->elementErrorHandler){
+							schema->elementErrorHandler(
+								schema->parser->userData, 
+								elementIndex, 
+								*componentIndex, 
+								VAL_REPETITION_EXCEEDED
+							);
+						}
+					}
+					constraintErrors = EDI_CheckElementConstraints(
+						(EDI_SimpleType *)(element->node),
+						value, 
+						length,
+						results
+					);
+				} else if(element->min_occurs > 0){
+					usageError = VAL_MANDATORY_ELEMENT;
+				}
+			/*}*/
 		}
-		if(length){
-			element->count++;
-			if(element->count <= element->max_occurs){
-				error = EDI_CheckElementConstraints(
-					(EDI_SimpleType *)(element->node),
-					value, 
-					length,
-					results
+	}
+	if(schema->elementErrorHandler){
+		if(usageError){
+			schema->elementErrorHandler(
+				schema->parser->userData, 
+				elementIndex, 
+				*componentIndex, 
+				usageError
+			);
+		}
+		if(constraintErrors){
+			int i;
+			for(i = 0; constraintErrors[i]; i++){
+				schema->elementErrorHandler(
+					schema->parser->userData, 
+					elementIndex, 
+					*componentIndex, 
+					constraintErrors[i]
 				);
-			} else {
-				error = VAL_REPETITION_EXCEEDED;
 			}
-		} else if(element->min_occurs > 0){
-			error = VAL_MANDATORY_ELEMENT;
+			free(constraintErrors);
 		}
 	}
-	if(error && schema->elementErrorHandler){
-		schema->elementErrorHandler(
-			schema->parser->userData, 
-			elementIndex, 
-			*componentIndex, 
-			error
-		);
-	}
-	return error;
+	return usageError;
 }
 /******************************************************************************/
 enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema       ,
@@ -481,15 +476,26 @@ enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema       ,
 			parent = (EDI_ComplexType)child->node;
 		}
 		for(child = parent->firstChild, i = 1; i <= parent->childCount; i++){
-			if(i > finalReceived && child->count < child->min_occurs){
-				if(schema->elementErrorHandler){
+			if(i > finalReceived){
+				if(child->count < child->min_occurs && schema->elementErrorHandler){
 					schema->elementErrorHandler(
 						schema->parser->userData,
-						(element > 0) ? element : i, 
-						(element > 0) ? i : 0, 
+						(element > 0) ? element : i,
+						(element > 0) ? i : 0,
 						VAL_MANDATORY_ELEMENT
 					);
+				} /* else {*/
+				EDI_DataElement dummy = malloc(sizeof(struct EDI_DataElementStruct));
+				if(dummy){
+					dummy->type = EDI_DATA_STRING;
+					dummy->data.string = NULL;
+					schema->parser->elementHandler(
+						schema->parser->userData,
+						dummy
+					);
+					free(dummy);
 				}
+				/*}*/
 			}
 			child = child->nextSibling;
 		} 
@@ -499,6 +505,7 @@ enum EDI_ElementValidationError EDI_ValidateSyntax(EDI_Schema schema       ,
 			anchor = EDI_FALSE;
 			child = parent->firstChild;
 			while(child && j < note->count){
+				//fprintf(stderr, "check if position %d is note position %d\n", i+1, note->positions[j]);
 				if(++i == note->positions[j]){
 					j++;
 					if(child->count > 0){
@@ -628,25 +635,25 @@ void EDI_SchemaFree(EDI_Schema schema)
 		schema->parser->validate = EDI_FALSE;
 	}
 	if(schema->identifier){
-		FREE(schema, schema->identifier);
+		free(schema->identifier);
 	}
 	if(schema->root){
 		EDI_DisposeNode((EDI_SchemaNode)schema->root);
 	}
 	if(schema->stack[0]){
-		FREE(schema, schema->stack[0]);
+		free(schema->stack[0]);
 	}
-	hashtable_destroy(schema->complexNodes, 0);
-	hashtable_destroy(schema->elements, 0);
+	hashtable_destroy(schema->complexNodes, EDI_FALSE);
+	hashtable_destroy(schema->elements, EDI_FALSE);
 	free_fcn = schema->memsuite->free_fcn;
-	free_fcn((void *)schema->memsuite);
-	free_fcn(schema);
+	free(schema);
 	schema = NULL;
 	return;
 }
 /******************************************************************************/
 void EDI_DisposeNode(EDI_SchemaNode node)
 {
+	
 	if(node->type == EDITYPE_ELEMENT){
 		EDI_DisposeSimpleType(node);
 	} else {

@@ -16,7 +16,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-//gcc scan837.c -std=c99 -I../include -L../lib -lm -ledival -o scan837
+//gcc scan837.c -I../include -L../lib -lm -ledival -o scan837
 
 #include <edival.h>
 #include <stdio.h>
@@ -55,28 +55,36 @@ void handleElementError(void *myData, int element, int component, enum EDI_Eleme
 
 void handleLoopStart(void *myData, const char *loopID)
 {
-	fprintf(stdout, "%s<%s>\n", prefix, loopID);
+	int i;
+
+	fprintf(stdout, "%s<loop type=\"%s\">\n", prefix, loopID);
 	depth++;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
 	if(strcmp("group", loopID) == 0){
 		group_start = 1;
-		counter = 0;
 		type_ok = 0;
+		EDI_Schema s = EDI_GetSchema((EDI_Parser)myData);
 	}	
 	return;
 }
 
 void handleLoopEnd(void *myData, const char *loopID)
 {
+	int i;
+	
 	depth--;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
-	fprintf(stdout, "%s</%s>\n", prefix, loopID);
+	/*fprintf(stdout, "%s</%s>\n", prefix, loopID);*/
+	fprintf(stdout, "%s</loop>\n", prefix);
+	if(strcmp("group", loopID) == 0){
+		EDI_Schema s = EDI_GetSchema((EDI_Parser)myData);
+	}
 	return;
 }
 
@@ -610,7 +618,7 @@ void load_standard(EDI_Parser p)
 		EDI_CreateElementType(s, EDI_DATA_DECIMAL, "782", 1, 18);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1343", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1331", 1, 2);
-		EDI_CreateElementType(s, EDI_DATA_DECIMAL, "1332", 1, 2);
+		EDI_CreateElementType(s, EDI_DATA_STRING, "1332", 1, 2);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1325", 1, 1);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1359", 1, 1);
 		EDI_CreateElementType(s, EDI_DATA_STRING, "1363", 1, 1);
@@ -1724,10 +1732,14 @@ void load_standard(EDI_Parser p)
 
 void handleDocumentStart(void *myData, enum EDI_DocumentType type)
 {
+	int i;
+	
+	fprintf(stdout, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
+	fprintf(stdout, "<?xml-stylesheet type=\"text/xsl\" href=\"claimreport.xslt\"?>\n");
 	fprintf(stdout, "%s<document>\n", prefix);
 	depth++;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
 	return;
@@ -1735,9 +1747,11 @@ void handleDocumentStart(void *myData, enum EDI_DocumentType type)
 
 void handleDocumentEnd(void *myData)
 {
+	int i;
+
 	depth--;
 	prefix[0] = '\0';
-	for(int i = 0; i < depth; i++){
+	for(i = 0; i < depth; i++){
 		strcat(prefix, "   ");
 	}
 	fprintf(stdout, "%s</document>\n", prefix);
@@ -1746,7 +1760,15 @@ void handleDocumentEnd(void *myData)
 
 void handleSegmentStart(void *myData, const char *tag)
 {
-	fprintf(stdout, "%sSeg: %3s ->", prefix, tag);
+	int i;
+
+	/*fprintf(stdout, "%sSeg: %3s ->", prefix, tag);*/
+	fprintf(stdout, "%s<segment type=\"%s\">\n", prefix, tag);
+	depth++;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
 	strcpy(curr_seg, tag);
 	curr_e = 0;
 	return;
@@ -1754,54 +1776,84 @@ void handleSegmentStart(void *myData, const char *tag)
 
 void handleSegmentEnd(void *myData, const char *tag)
 {
-    fprintf(stdout, " <- End %s\n", tag);
-    return;
+	int i;
+
+	depth--;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	/*fprintf(stdout, " <- End %s\n", tag);*/
+	fprintf(stdout, "%s</segment>\n", prefix);
+	return;
 }
 
 void handleCompositeStart(void *myData)
 {
+	int i;
+	char name[6];
+
 	curr_e++;
 	curr_c = 0;
 	is_comp = 1;
-	fprintf(stdout, "{");
+	/*fprintf(stdout, "{");*/
+	
+	sprintf(name, "%s%2.2d", curr_seg, curr_e);
+	fprintf(stdout, "%s<composite usage=\"%s\">\n", prefix, name);
+	depth++;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
 	return;
 }
 
 void handleCompositeEnd(void *myData)
 {
-    fprintf(stdout, "}");
-    is_comp = 0;
-    return;
+	int i;
+
+    /*fprintf(stdout, "}");*/
+	depth--;
+	prefix[0] = '\0';
+	for(i = 0; i < depth; i++){
+		strcat(prefix, "   ");
+	}
+	fprintf(stdout, "%s</composite>\n", prefix);
+	is_comp = 0;
+	return;
 }
 
 void handleElement(void *myData, EDI_DataElement element)
 {
 	const char *string;
+	char name[9];
 
-	counter++;
+	if(is_comp){
+		sprintf(name, "%s%2.2d-%d", curr_seg, curr_e, ++curr_c);
+	} else {
+		sprintf(name, "%s%2.2d", curr_seg, ++curr_e);
+	}
 	switch(element->type){
 		case EDI_DATA_INTEGER:
 		case EDI_DATA_BINARY_SIZE:
-			fprintf(stdout, "[%d]", element->data.integer);
+			/*fprintf(stdout, "[%d]", element->data.integer);*/
+			fprintf(stdout, "%s<element name=\"%s\" value=\"%d\"/>\n", prefix, name, element->data.integer);
 			break;
 		case EDI_DATA_DECIMAL:
-			fprintf(stdout, "[%Lf]", element->data.decimal);
+			/*fprintf(stdout, "[%Lf]", element->data.decimal);*/
+			fprintf(stdout, "%s<element name=\"%s\" value=\"%Lf\"/>\n", prefix, name, element->data.decimal);
 			break;
 		default:
-			fprintf(stdout, "[%s]", element->data.string);
-			if(is_comp){
-				curr_c++;
-			} else {
-				curr_e++;
-			}
+			/*fprintf(stdout, "[%s]", element->data.string);*/
+			fprintf(stdout, "%s<element name=\"%s\" value=\"%s\"/>\n", prefix, name, element->data.string);
 			if(group_start){
-				if(counter == 1){
+				if(curr_e == 1){
 					if(strcmp("HC", element->data.string) == 0){
 						type_ok = 1;
 					} else {
-						fprintf(stderr, "*** Type not 'FA': No transaction-level validation will be performed on this functional group.\n");
+						fprintf(stderr, "*** Type not 'HC': No transaction-level validation will be performed on this functional group.\n");
 					}
-				} else if(counter == 8){
+				} else if(curr_e == 8){
 					if(type_ok){
 						if((strncmp("004010", element->data.string, 6) == 0)){
 							load_standard((EDI_Parser)myData);

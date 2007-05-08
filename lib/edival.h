@@ -121,17 +121,6 @@ EDI_Parser EDI_ParserCreate(void);
 
 
 /*******************************************************************************
-    Constructs a new parser using the memory management suite referred to
-    by memsuite. If memsuite is NULL, then use the standard library memory
-    suite. 
-   
-    All further memory operations used for the created parser will come from
-    the given suite.
-*******************************************************************************/
-EDI_Parser EDI_ParserCreate_MM(EDI_Memory_Handling_Suite *memsuite);
-
-
-/*******************************************************************************
     Sets the userdata structure within the parser.  This layout and usage of
     this structure is to be determined by the calling program.
 *******************************************************************************/
@@ -254,15 +243,12 @@ enum EDI_Status       EDI_ResumeParser(EDI_Parser);
 /*******************************************************************************
     Get the currently set error code from the parser object.
 *******************************************************************************/
-enum EDI_Error      EDI_GetErrorCode(EDI_Parser);
+enum EDI_Error        EDI_GetErrorCode(EDI_Parser);
 
 /*******************************************************************************
-    Use the currently set memory handling functions.
+    Release a parser.
 *******************************************************************************/
-void               *EDI_MemMalloc(EDI_Parser, size_t);
-void               *EDI_MemRealloc(EDI_Parser, void *, size_t);
-void                EDI_MemFree(EDI_Parser, void *);
-void                EDI_ParserFree(EDI_Parser);
+void                  EDI_ParserFree(EDI_Parser);
 
 /*******************************************************************************
 
@@ -294,21 +280,21 @@ enum EDI_NodeType {
  * in the data stream.
  ******************************************************************************/
 enum EDI_ElementValidationError {
-    VAL_VALID_ELEMENT       = 0,
-    VAL_RANGE_HIGH          = 1,
-    VAL_RANGE_LOW           = 2,
-    VAL_CHAR_ERROR          = 3,
-    VAL_CODE_ERROR          = 4,
-    VAL_DATE_ERROR          = 5,
-    VAL_TIME_ERROR          = 6,
-    VAL_UNKNOWN_ELEMENT     = 7,
-    VAL_MANDATORY_ELEMENT   = 8,
-    VAL_TOO_MANY_ELEMENTS   = 9,
-    VAL_MISSING_CONDITIONAL = 10,
-    VAL_EXCLUSION_VIOLATED  = 11,
-    VAL_TOO_MANY_COMPONENTS = 12,
-    VAL_REPETITION_EXCEEDED = 13,
-    VAL_INVALID_SEGMENT     = 14
+	VAL_VALID_ELEMENT       = 0,
+	VAL_RANGE_HIGH          = 1,
+	VAL_RANGE_LOW           = 2,
+	VAL_CHAR_ERROR          = 3,
+	VAL_CODE_ERROR          = 4,
+	VAL_DATE_ERROR          = 5,
+	VAL_TIME_ERROR          = 6,
+	VAL_UNKNOWN_ELEMENT     = 7,
+	VAL_MANDATORY_ELEMENT   = 8,
+	VAL_TOO_MANY_ELEMENTS   = 9,
+	VAL_MISSING_CONDITIONAL = 10,
+	VAL_EXCLUSION_VIOLATED  = 11,
+	VAL_TOO_MANY_COMPONENTS = 12,
+	VAL_REPETITION_EXCEEDED = 13,
+	VAL_INVALID_SEGMENT     = 14
 };
 
 /*******************************************************************************
@@ -316,15 +302,15 @@ enum EDI_ElementValidationError {
  * in the data stream.
  ******************************************************************************/
 enum EDI_SegmentValidationError {
-    SEGERR_NONE          = 0,
-    SEGERR_UNEXPECTED    = 1,
-    SEGERR_MANDATORY     = 2,
-    SEGERR_LOOP_EXCEEDED = 3,
-    SEGERR_EXCEED_REPEAT = 4,
-    SEGERR_UNDEFINED     = 5,
-    SEGERR_SEQUENCE      = 6,
-    SEGERR_UNKNOWN       = 7,
-    SEGERR_LOOP_SEEK     = 8
+	SEGERR_NONE          = 0,
+	SEGERR_UNEXPECTED    = 1,
+	SEGERR_MANDATORY     = 2,
+	SEGERR_LOOP_EXCEEDED = 3,
+	SEGERR_EXCEED_REPEAT = 4,
+	SEGERR_UNDEFINED     = 5,
+	SEGERR_SEQUENCE      = 6,
+	SEGERR_UNKNOWN       = 7
+	/*SEGERR_LOOP_SEEK     = 8*/ /* we don't use this */
 };
 
 /*******************************************************************************
@@ -333,38 +319,25 @@ enum EDI_SegmentValidationError {
  * as required.
  ******************************************************************************/
 enum EDI_SyntaxType {
-    EDI_SYNTAX_PAIRED    = 1,
-    EDI_SYNTAX_REQUIRED  = 2,
-    EDI_SYNTAX_EXCLUSION = 3,
-    EDI_SYNTAX_CONDITION = 4,
-    EDI_SYNTAX_LIST      = 5
+	EDI_SYNTAX_PAIRED    = 1,
+	EDI_SYNTAX_REQUIRED  = 2,
+	EDI_SYNTAX_EXCLUSION = 3,
+	EDI_SYNTAX_CONDITION = 4,
+	EDI_SYNTAX_LIST      = 5
 };
 
 /*******************************************************************************
-    Constructs a new schema for validation.
-    Returns NULL if failure.  The second function constructs a schema with the
-    identifier field populated.  The name field can be used by the calling
-    application to refer to one of multiple schemas loaded.
-*******************************************************************************/
+ * Constructs a new schema for validation.
+ * Returns NULL if failure.  The second function constructs a schema with the
+ * identifier field populated.  The name field can be used by the calling
+ * application to refer to one of multiple schemas loaded.
+ ******************************************************************************/
 EDI_Schema EDI_SchemaCreate(enum EDI_DocumentType);
 EDI_Schema EDI_SchemaCreateNamed(enum EDI_DocumentType, const char *);
 
 /*******************************************************************************
-    Constructs a new schema using the memory management suite referred to
-    by memsuite. If memsuite is NULL, then use the standard library memory
-    suite. 
-   
-    All further memory operations used for the created schema will come from
-    the given suite.  The second function constructs a schema with the
-    identifier field populated.  The name field can be used by the calling
-    application to refer to one of multiple schemas loaded.
-*******************************************************************************/
-EDI_Schema EDI_SchemaCreate_MM(enum EDI_DocumentType, EDI_Memory_Handling_Suite *);
-EDI_Schema EDI_SchemaCreateNamed_MM(enum EDI_DocumentType      ,
-                                    const char *               ,
-                                    EDI_Memory_Handling_Suite *);
-
-
+ * Release a schema.
+ ******************************************************************************/
 void EDI_SchemaFree(EDI_Schema);
 
 /*******************************************************************************
@@ -391,6 +364,11 @@ EDI_Schema EDI_RemoveSchema(EDI_Parser);
 *******************************************************************************/
 char *EDI_GetSchemaId(EDI_Schema);
 void  EDI_SetSchemaId(EDI_Schema, const char *);
+
+/*******************************************************************************
+    Get the identifier for a schema node object.
+*******************************************************************************/
+char *EDI_GetSchemaNodeId(EDI_SchemaNode);
 
 /*******************************************************************************
  * Returns a new element type Schema node.  NULL if unsuccessful.  The element
@@ -438,6 +416,7 @@ void EDI_SetDocumentRoot(EDI_Schema           ,
                                            /* The document node representing
                                             * the document's root.  The root
                                             * must be of type EDITYPE_DOCUMENT */
+
 /*******************************************************************************
  * Gets the document root
  ******************************************************************************/
@@ -492,18 +471,20 @@ EDI_InsertType(EDI_SchemaNode,  /* Parent Node  */
                unsigned int  ,  /* Minimum occurances of the child */
                unsigned int  ); /* Maximum occurances of the child */
 
-
 /*******************************************************************************
- * Retrieves an array of a complex node's direct child nodes.  The child count
- * will be placed in the integer value pointed to by the first integer pointer.
- * The third argument should be a pointer that will contain an array of the 
- * minimum repeats of the child in the context of the parent.  The fourth will 
- * contain the maximum repeats.
+ * Retrieves the number of children that this node has.
  ******************************************************************************/
-EDI_SchemaNode* EDI_GetChildNodes(EDI_SchemaNode ,
-                                  unsigned int * ,
-                                  unsigned int **,
-                                  unsigned int **);
+unsigned int    EDI_GetChildCount(EDI_SchemaNode);
+/*******************************************************************************
+ * Retrieves an array of a complex node's direct child nodes.  The second 
+ * argument should be an array large enough to hold the list of child nodes.  
+ * The third argument should be an array of the minimum repeats of the child 
+ * in the context of the parent.  The fourth will contain the maximum repeats.
+ ******************************************************************************/
+void EDI_GetChildNodes(EDI_SchemaNode ,
+                       EDI_SchemaNode*,
+                       unsigned int*  ,
+                       unsigned int*  );
 
 
 /*******************************************************************************

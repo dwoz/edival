@@ -53,7 +53,7 @@ struct EDI_SimpleTypeStruct {
 /******************************************************************************/
 void EDI_DisposeSimpleType(EDI_SchemaNode);
 
-enum EDI_ElementValidationError 
+enum EDI_ElementValidationError*
 EDI_CheckElementConstraints(EDI_SimpleType *, /* The element */
                             const char     *, /* String/element value  */
                             int             , /* String/element length */

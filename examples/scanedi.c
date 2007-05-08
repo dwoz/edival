@@ -16,7 +16,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-//gcc scanedi.c -std=c99 -I../lib -L../lib -lm -ledival -o scanedi
+//gcc scanedi.c  -I../lib -L../lib -lm -ledival -o scanedi
 
 #include <edival.h>
 #include <stdio.h>
@@ -31,32 +31,32 @@
 
 void handleDocumentStart(void *myData, enum EDI_DocumentType type)
 {
-	//fprintf(stdout, "<document>\n");
+	fprintf(stdout, "<document>\n");
 }
 
 void handleDocumentEnd(void *myData)
 {
-	//fprintf(stdout, "</document>\n");
+	fprintf(stdout, "</document>\n");
 }
 
 void handleSegmentStart(void *myData, const char *tag)
 {
-	//fprintf(stdout, "\tSeg: %3s ->", tag);
+	fprintf(stdout, "\tSeg: %3s ->", tag);
 }
 
 void handleSegmentEnd(void *myData, const char *tag)
 {
-	//fprintf(stdout, " <- End %s\n", tag);
+	fprintf(stdout, " <- End %s\n", tag);
 }
 
 void handleCompositeStart(void *myData)
 {
-	//fprintf(stdout, "{");
+	fprintf(stdout, "{");
 }
 
 void handleCompositeEnd(void *myData)
 {
-	//fprintf(stdout, "}");
+	fprintf(stdout, "}");
 }
 
 void handleElement(void *myData, EDI_DataElement element)
@@ -70,7 +70,7 @@ void handleElement(void *myData, EDI_DataElement element)
 			fprintf(stdout, "[%Lf]", element->data.decimal);
 			break;
 		default:
-			//fprintf(stdout, "[%s]", element->data.string);
+			fprintf(stdout, "[%s]", element->data.string);
 			break;
 	}
 }

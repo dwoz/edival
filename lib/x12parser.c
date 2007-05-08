@@ -161,7 +161,7 @@ EDI_StateHandler X12_ProcessISA(EDI_Parser parser)
 	X12_PARSER->delimiters[SEGMENT] = bufIter[105];
 	repeatSep                       = bufIter[82];
 	componentSep                    = bufIter[104];
-	EDI_PARSER->documentStartHandler(EDI_PARSER->userData, EDI_ANSI_X12);	
+	EDI_PARSER->documentStartHandler(EDI_PARSER->userData, EDI_ANSI_X12);
 	X12_NEXT_TOKEN(bufIter, X12_PARSER->delimiters, tok);
 	if(EDI_PARSER->schema && EDI_PARSER->schema->documentType == EDI_ANSI_X12){
 		EDI_PARSER->validate = EDI_TRUE;
@@ -379,9 +379,9 @@ EDI_StateHandler X12_ProcessMessage(EDI_Parser parser)
 		}
 		if(EDI_PARSER->binaryElementSize){
 			if(EDI_PARSER->binBuffer){
-				FREE(parser, EDI_PARSER->binBuffer);
+				free(EDI_PARSER->binBuffer);
 			}
-			EDI_PARSER->binBuffer = MALLOC(parser, EDI_PARSER->binaryElementSize * sizeof(char));
+			EDI_PARSER->binBuffer = malloc(EDI_PARSER->binaryElementSize * sizeof(char));
 	    	if(X12_PARSER->savedTag){
 	    		free(X12_PARSER->savedTag);
 	    	}
@@ -546,10 +546,10 @@ EDI_StateHandler X12_ProcessIEA(EDI_Parser parser)
 X12_Parser X12_ParserCreate(EDI_Parser parent)
 {
 	X12_Parser new = NULL;
-	new = MALLOC(parent, sizeof(struct X12_ParserStruct));
+	new = malloc(sizeof(struct X12_ParserStruct));
 	if(new){
 		memset(new, 0, sizeof(struct X12_ParserStruct));
-		new->data                   = MALLOC(parent, sizeof(struct EDI_DataElementStruct));
+		new->data                   = malloc(sizeof(struct EDI_DataElementStruct));
 		parent->process             = (void *)X12_ProcessISA;
 		parent->freeChild           = (void *)X12_ParserDestroy;
 		EDI_AddState(parent->machine, (void *)X12_ProcessISA, 0);
@@ -571,7 +571,7 @@ void X12_ParserDestroy(EDI_Parser parser)
 	if(X12_PARSER->savedTag){
 		free(X12_PARSER->savedTag);
 	}
-	FREE(parser, X12_PARSER->data);
-	FREE(parser, X12_PARSER);
+	free(X12_PARSER->data);
+	free(X12_PARSER);
 	EDI_PARSER->child = NULL;
 }
